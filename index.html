@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pass Pricing — Blocks</title>
+<title>Pass Pricing — Blocks with Floors & Include</title>
 <style>
   :root{--yellow:#fff36a;--gray:#d9d9d9;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
   *{box-sizing:border-box}
@@ -39,9 +39,12 @@
   .payments{display:flex;flex-wrap:wrap;gap:8px}
   .chip{border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 10px;font-size:12px}
   .blocks{padding:0 16px 24px}
-  .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden}
-  .block .title{background:#f3f4f6;padding:10px 12px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+  .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
+  .block .title{background:#f3f4f6;padding:10px 12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .title-right{display:flex;align-items:center;gap:12px}
   .muted{color:#6b7280}
+  .inactive{opacity:.55; filter:grayscale(0.4)}
+  .switch{display:flex;align-items:center;gap:6px;font-size:12px}
 </style>
 </head>
 <body>
@@ -49,12 +52,12 @@
   <div class="bar">
     <div>NAME</div>
     <div class="right">
-      <span class="pill" id="blockCountPill">Blocks: 1</span>
+      <span class="pill" id="blockCountPill">Blocks: 1 (active 1)</span>
       <button class="btn" id="addBlock">+ Add Block</button>
     </div>
   </div>
 
-  <!-- MASTER SUMMARY (ALL BLOCKS) -->
+  <!-- MASTER SUMMARY (ALL INCLUDED BLOCKS) -->
   <div class="card" id="masterCard">
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
@@ -62,12 +65,17 @@
       <div class="field">
         <label for="masterMonths">Months (payments for ALL blocks)</label>
         <input id="masterMonths" type="number" min="1" max="12" step="1" value="" />
-        <div class="hint">Auto = max pass count across blocks; override 1–12.</div>
+        <div class="hint">Auto = max pass count across <b>included</b> blocks; override 1–12.</div>
+      </div>
+      <div class="field">
+        <label for="masterFloor">Minimum $/acre (floor)</label>
+        <input id="masterFloor" type="number" min="0" step="0.01" value="20" />
+        <div class="hint">Applies to all blocks unless a block sets its own override.</div>
       </div>
     </div>
     <div class="card-head">
       <span class="pill" id="masterPassInfo">Passes: —</span>
-      <span class="pill" id="masterAcreInfo">Total Acres (included per pass): —</span>
+      <span class="pill" id="masterAcreInfo">Total Acres (included): —</span>
       <span class="pill" id="masterTotal">Whole-field total: $—</span>
     </div>
     <div style="padding:0 16px 0">
@@ -101,8 +109,7 @@
 
 <script>
 /*=====================  SHARED UTILS  =====================*/
-const DOLLARS_PER_PIN = 20;
-const FLOOR_PER_ACRE  = 20;
+const DOLLARS_PER_PIN = 20; // fixed per spec
 
 const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
@@ -124,15 +131,15 @@ function calcBase(pinCount, acres){
   return { basePerAcre, autoCount };
 }
 
-function calcWithCount(pinCount, acres, passCount){
-  const { basePerAcre } = calcBase(pinCount, acres); // validation included
+function calcWithCount(pinCount, acres, passCount, floorPerAcre){
+  const { basePerAcre } = calcBase(pinCount, acres); // includes validation
   const passes = [];
   let prev = basePerAcre;
   for (let i=1;i<=passCount;i++){
     let rate = (i===1) ? basePerAcre : (prev/2);
     let floored = false;
-    if (rate < FLOOR_PER_ACRE){ rate = FLOOR_PER_ACRE; floored = true; }
-    prev = rate; // halving uses floored
+    if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
+    prev = rate; // halving uses the floored value
     passes.push({ number:i, perAcre:rate, floored });
   }
   const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
@@ -141,7 +148,7 @@ function calcWithCount(pinCount, acres, passCount){
 }
 
 /*=====================  STATE  =====================*/
-let blocks = []; // each: {id, pins, acres, removedPasses, monthsTouched, monthsVal}
+let blocks = []; // each: {id, pins, acres, include, removedPasses, monthsTouched, monthsVal, floorTouched, floorVal}
 let masterMonthsTouched = false;
 let blockSeq = 1;
 
@@ -157,9 +164,17 @@ function blockTemplate(b){
   el.innerHTML = `
     <div class="title">
       <div>Block ${b.id}</div>
-      <div class="muted">You can remove passes here. This does not affect other blocks.</div>
+      <div class="title-right">
+        <label class="switch">
+          <input type="checkbox" id="include-${b.id}" ${b.include ? 'checked' : ''}>
+          <span>Include in totals</span>
+        </label>
+        <span class="muted" id="effectiveFloor-${b.id}"></span>
+      </div>
     </div>
+
     <div id="err-${b.id}" class="notice"></div>
+
     <div class="inputs">
       <div class="field">
         <label for="pins-${b.id}">Pin Count (whole number)</label>
@@ -173,6 +188,11 @@ function blockTemplate(b){
         <label for="months-${b.id}">Months (payments)</label>
         <input id="months-${b.id}" type="number" min="1" max="12" step="1" value="" />
         <div class="hint">Auto = this block's pass count; override 1–12.</div>
+      </div>
+      <div class="field">
+        <label for="floor-${b.id}">Min $/acre (optional override)</label>
+        <input id="floor-${b.id}" type="number" min="0" step="0.01" value="" placeholder="">
+        <div class="hint">Leave blank to use master floor.</div>
       </div>
       <div class="field">
         <label>Passes (auto, can remove)</label>
@@ -221,11 +241,22 @@ function blockTemplate(b){
 
 /*=====================  RENDERING  =====================*/
 function renderAll(){
-  // Render each block, collect data for master
-  const masterRows = []; // index -> {totalCost, totalAcres}
-  const perBlockInfo = [];
+  // read master floor
+  let masterFloor = Number(document.getElementById('masterFloor').value);
+  if (!(masterFloor >= 0)) masterFloor = 20;
+  masterFloor = round2(masterFloor);
+
+  // Render each block, collect data for master from INCLUDED blocks only
+  const masterRows = []; // index -> {total, acres}
+  let totalActiveAcres = 0;
+  let activeBlocks = 0;
 
   blocks.forEach(b=>{
+    const blockEl = document.querySelector(`.block[data-block-id="${b.id}"]`);
+    const includeChk = document.getElementById(`include-${b.id}`);
+    b.include = !!includeChk?.checked;
+    blockEl.classList.toggle('inactive', !b.include);
+
     const err = document.getElementById(`err-${b.id}`);
     try{
       err.style.display = 'none';
@@ -233,9 +264,20 @@ function renderAll(){
       const pins  = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value));
       const acres = Number(document.getElementById(`acres-${b.id}`).value);
 
+      // base + auto passes
       const base = calcBase(pins, acres);
       b.removedPasses = clamp(b.removedPasses, 0, base.autoCount-1);
       const effPasses = clamp(base.autoCount - b.removedPasses, 1, 99);
+
+      // floor override handling
+      const floorInput = document.getElementById(`floor-${b.id}`);
+      let floorVal = Number(floorInput.value);
+      let hasOverride = Number.isFinite(floorVal) && floorInput.value !== '';
+      if (!hasOverride) floorVal = masterFloor;
+      floorVal = clamp(round2(floorVal), 0, 1e9);
+      // show current effective floor + update placeholder to hint inherited value
+      document.getElementById(`effectiveFloor-${b.id}`).textContent = `Floor used: ${fmtUSD(floorVal)} / acre`;
+      floorInput.placeholder = `${masterFloor}`;
 
       // months sync per block
       const monthsInput = document.getElementById(`months-${b.id}`);
@@ -245,14 +287,15 @@ function renderAll(){
       if (monthsInput.value !== String(monthsVal)) monthsInput.value = monthsVal;
       b.monthsVal = monthsVal;
 
-      const q = calcWithCount(pins, acres, effPasses);
+      // full calc (with floor)
+      const q = calcWithCount(pins, acres, effPasses, floorVal);
 
       // pills
       document.getElementById(`base-${b.id}`).textContent = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
       document.getElementById(`passcount-${b.id}`).textContent = `Passes: ${q.passCount}` + (b.removedPasses ? ` (auto ${base.autoCount}, removed ${b.removedPasses})` : '');
       document.getElementById(`total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
-      // table rows
+      // rows
       const tbody = document.getElementById(`rows-${b.id}`); tbody.innerHTML='';
       q.passes.forEach(p=>{
         const tr = document.createElement('tr');
@@ -262,11 +305,13 @@ function renderAll(){
         const td3 = document.createElement('td'); td3.textContent=fmtUSD(round2(p.perAcre * acres));
         tr.append(td1,td2,td3); tbody.appendChild(tr);
 
-        // accumulate for master
-        const idx = p.number - 1;
-        masterRows[idx] = masterRows[idx] || { total:0, acres:0 };
-        masterRows[idx].total += round2(p.perAcre * acres);
-        masterRows[idx].acres += acres;
+        // accumulate for master if block included
+        if (b.include){
+          const idx = p.number - 1;
+          masterRows[idx] = masterRows[idx] || { total:0, acres:0 };
+          masterRows[idx].total += round2(p.perAcre * acres);
+          masterRows[idx].acres += acres;
+        }
       });
 
       document.getElementById(`passesCell-${b.id}`).textContent = q.passCount;
@@ -285,8 +330,7 @@ function renderAll(){
       document.getElementById(`passesDisplay-${b.id}`).value = `${q.passCount} (auto ${base.autoCount})`;
       document.getElementById(`removePass-${b.id}`).disabled = q.passCount <= 1;
 
-      // keep for master
-      perBlockInfo.push({ effPasses, acres });
+      if (b.include){ totalActiveAcres += acres; activeBlocks++; }
     }catch(e){
       err.style.display = 'block';
       err.textContent = e.message;
@@ -294,10 +338,10 @@ function renderAll(){
   });
 
   // MASTER render
-  const maxPass = masterRows.length; // highest pass present
-  document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length}`;
+  const maxPass = masterRows.length; // highest pass present among included blocks
+  document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-  // master months (auto to maxPass unless overridden)
+  // master months (auto = maxPass unless overridden)
   const masterMonthsInput = document.getElementById('masterMonths');
   let mVal = Number(masterMonthsInput.value);
   if (!masterMonthsTouched || !Number.isFinite(mVal)){ mVal = maxPass || 1; masterMonthsInput.value = mVal; }
@@ -306,14 +350,13 @@ function renderAll(){
 
   // build table
   const mBody = document.getElementById('masterPassRows'); mBody.innerHTML='';
-  let masterTotal = 0, totalAcresShown = 0;
+  let masterTotal = 0;
 
   for (let i=0;i<masterRows.length;i++){
     const row = masterRows[i];
     if (!row) continue;
     const weightedPerAcre = row.acres > 0 ? round2(row.total / row.acres) : 0;
     masterTotal += row.total;
-    totalAcresShown = row.acres; // last row's acres ~ should be same set as previous or subset; just informative
 
     const tr = document.createElement('tr');
     if (i===0) tr.classList.add('row-hi');
@@ -324,7 +367,7 @@ function renderAll(){
   }
 
   document.getElementById('masterPassInfo').textContent = `Passes: ${maxPass || '—'}`;
-  document.getElementById('masterAcreInfo').textContent = `Total Acres (varies by pass): ${perBlockInfo.reduce((s,b)=>s+b.acres,0) || 0}`;
+  document.getElementById('masterAcreInfo').textContent = `Total Acres (included): ${round2(totalActiveAcres)}`;
   document.getElementById('masterPassesCell').textContent = maxPass || '—';
   document.getElementById('masterGrandCell').textContent  = fmtUSD(round2(masterTotal));
   document.getElementById('masterTotal').textContent      = `Whole-field total: ${fmtUSD(round2(masterTotal))}`;
@@ -341,7 +384,7 @@ function renderAll(){
 /*=====================  BLOCK MANAGEMENT  =====================*/
 function addBlock({pins=0, acres=1}={}){
   const id = blockSeq++;
-  const b = { id, pins, acres, removedPasses:0, monthsTouched:false, monthsVal:null };
+  const b = { id, pins, acres, include:true, removedPasses:0, monthsTouched:false, monthsVal:null, floorTouched:false, floorVal:null };
   blocks.push(b);
 
   const el = blockTemplate(b);
@@ -352,11 +395,13 @@ function addBlock({pins=0, acres=1}={}){
   evs.forEach(e=>{
     document.getElementById(`pins-${id}`).addEventListener(e, renderAll);
     document.getElementById(`acres-${id}`).addEventListener(e, renderAll);
+    document.getElementById(`floor-${id}`).addEventListener(e, ()=>{ b.floorTouched = true; renderAll(); });
   });
   document.getElementById(`months-${id}`).addEventListener('input', ()=>{ b.monthsTouched = true; renderAll(); });
   document.getElementById(`months-${id}`).addEventListener('change', ()=>{ b.monthsTouched = true; renderAll(); });
   document.getElementById(`removePass-${id}`).addEventListener('click', ()=>{ b.removedPasses += 1; renderAll(); });
   document.getElementById(`resetPasses-${id}`).addEventListener('click', ()=>{ b.removedPasses = 0; renderAll(); });
+  document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
   // initial values in inputs
   document.getElementById(`pins-${id}`).value  = pins;
@@ -369,6 +414,8 @@ function addBlock({pins=0, acres=1}={}){
 document.getElementById('addBlock').addEventListener('click', ()=> addBlock({pins:0, acres:1}));
 document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched = true; renderAll(); });
+document.getElementById('masterFloor').addEventListener('input', renderAll);
+document.getElementById('masterFloor').addEventListener('change', renderAll);
 
 /*=====================  BOOT  =====================*/
 renderAll();
