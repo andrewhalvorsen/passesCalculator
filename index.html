@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pass Pricing Calculator</title>
   <style>
-    :root{
-      --yellow:#fff36a; --gray:#d9d9d9; --red:#c81e1e; --ink:#111827;
-      --accent:#2563eb; --border:#e5e7eb;
-    }
+    :root{--yellow:#fff36a;--gray:#d9d9d9;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
     *{box-sizing:border-box}
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
          margin:0;background:#f8fafc;color:var(--ink)}
@@ -22,10 +19,13 @@
     .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
     .field input{width:100%;font-size:18px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;outline:none}
     .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .row-controls{display:flex;gap:8px;align-items:center}
+    button{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 10px;font-size:14px;cursor:pointer}
+    button:disabled{opacity:.5;cursor:not-allowed}
     .hint{font-size:11px;color:#6b7280;margin-top:6px}
     .grid{width:100%;border-collapse:collapse;margin:8px 0 0}
     .grid th,.grid td{border:1px solid var(--border);padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums}
-    .grid th:first-child,.grid td:first-child{ text-align:center }
+    .grid th:first-child,.grid td:first-child{text-align:center}
     .grid thead th{background:#eef2ff;font-weight:700}
     .grid tfoot td{background:#f3f4f6;font-weight:700}
     .row-hi{background:var(--yellow)}
@@ -59,6 +59,15 @@
         <input id="months" type="number" min="1" max="12" step="1" value="" />
         <div class="hint">Auto-fills to pass count; change to override (1–12).</div>
       </div>
+      <div class="field">
+        <label>Passes (auto, can remove)</label>
+        <div class="row-controls">
+          <input id="passesDisplay" type="text" value="" readonly style="width:120px" />
+          <button id="removePass">Remove 1 Pass</button>
+          <button id="resetPasses">Reset Passes</button>
+        </div>
+        <div class="hint">Defaults to 4/5/6 based on base $/acre. You can remove passes (min 1).</div>
+      </div>
     </div>
 
     <div class="meta">
@@ -69,7 +78,7 @@
     </div>
 
     <div style="padding:0 16px 16px">
-      <table class="grid" id="resultTable">
+      <table class="grid">
         <thead>
           <tr>
             <th style="width:120px">Pass</th>
@@ -99,9 +108,15 @@
     const DOLLARS_PER_PIN = 20;
     const FLOOR_PER_ACRE  = 20;
 
-    const $ = sel => document.querySelector(sel);
+    // state for overrides
+    let monthsTouched   = false; // true once user edits Months
+    let removedPasses   = 0;     // how many passes the user removed from the auto count
+
+    const $ = s => document.querySelector(s);
     const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
     const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100; // half-up for positives
+
+    function clamp(n,min,max){ return Math.min(max, Math.max(min, n)); }
 
     function equalPayments(total, n){
       if (n <= 0) return [];
@@ -111,15 +126,20 @@
       return list;
     }
 
-    function calc(pinCount, acres){
+    // Base calculation to get default (auto) pass count
+    function calcBase(pinCount, acres){
       if (pinCount < 0 || !Number.isFinite(pinCount))
         throw new Error('Pin count must be a whole number >= 0');
       if (!(acres > 0))
         throw new Error('Acres must be > 0');
-
       const basePerAcre = (pinCount * DOLLARS_PER_PIN) / acres;
-      const passCount = basePerAcre < 50 ? 4 : (basePerAcre < 100 ? 5 : 6); // 100 => 6
+      const autoCount = basePerAcre < 50 ? 4 : (basePerAcre < 100 ? 5 : 6); // 100 => 6
+      return { basePerAcre, autoCount };
+    }
 
+    // Full calculation using an effective pass count (after removals)
+    function calcWithCount(pinCount, acres, passCount){
+      const { basePerAcre } = calcBase(pinCount, acres); // reuse validation
       const passes = [];
       let prev = basePerAcre;
       for (let i=1;i<=passCount;i++){
@@ -127,21 +147,11 @@
         let floored = false;
         if (rate < FLOOR_PER_ACRE){ rate = FLOOR_PER_ACRE; floored = true; }
         prev = rate; // halving uses floored value
-        passes.push({number:i, perAcre:rate, floored});
+        passes.push({ number:i, perAcre:rate, floored });
       }
-
       const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
       const fieldTotal   = round2(perAcreTotal * acres);
-
       return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
-    }
-
-    // Track whether user has overridden Months
-    let monthsTouched = false;
-
-    function clampMonths(n){
-      if (!Number.isFinite(n)) return 1;
-      return Math.min(12, Math.max(1, Math.trunc(n)));
     }
 
     function render(){
@@ -149,39 +159,51 @@
       const acres = Number($('#acres').value);
 
       try{
-        $('#err').style.display = 'none';
-        const q = calc(pins, acres);
+        $('#err').style.display='none';
 
-        // If user hasn't overridden, keep months synced to passCount
+        // base info & auto pass count
+        const base = calcBase(pins, acres);
+        // clamp removed passes so we never go below 1
+        removedPasses = clamp(removedPasses, 0, base.autoCount - 1);
+        const effectivePasses = clamp(base.autoCount - removedPasses, 1, 99);
+
+        // months: auto-follow effectivePasses unless user has overridden
         let monthsVal = Number($('#months').value);
         if (!monthsTouched || !Number.isFinite(monthsVal)){
-          monthsVal = q.passCount;
+          monthsVal = effectivePasses;
           $('#months').value = monthsVal;
         }
-        monthsVal = clampMonths(monthsVal);
+        monthsVal = clamp(Math.trunc(monthsVal), 1, 12);
         if ($('#months').value !== String(monthsVal)) $('#months').value = monthsVal;
 
-        // Pills
-        $('#basePerAcre').textContent  = `Base: ${fmtUSD(round2(q.basePerAcre))} / acre`;
-        $('#passCount').textContent    = `Passes: ${q.passCount}`;
+        // full calc with effective pass count
+        const q = calcWithCount(pins, acres, effectivePasses);
+
+        // top pills
+        $('#basePerAcre').textContent  = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
+        $('#passCount').textContent    = `Passes: ${q.passCount}` + (removedPasses ? ` (auto ${base.autoCount}, removed ${removedPasses})` : '');
         $('#perAcreTotal').textContent = `Per-acre total: ${fmtUSD(round2(q.perAcreTotal))}`;
         $('#fieldTotal').textContent   = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
-        // Table rows
-        const tbody = $('#passRows'); tbody.innerHTML = '';
+        // display field for passes
+        $('#passesDisplay').value = `${q.passCount} (auto ${base.autoCount})`;
+        $('#removePass').disabled = q.passCount <= 1;
+
+        // table rows
+        const tbody = $('#passRows'); tbody.innerHTML='';
         q.passes.forEach(p=>{
           const tr=document.createElement('tr');
           if (p.number===1) tr.classList.add('row-hi');
           const td1=document.createElement('td'); td1.style.textAlign='center';
-          td1.textContent=`Pass ${p.number}` + (p.floored?' *':'');
-          const td2=document.createElement('td'); td2.textContent=fmtUSD(round2(p.perAcre));
-          const td3=document.createElement('td'); td3.textContent=fmtUSD(round2(p.perAcre * acres));
+          td1.textContent = `Pass ${p.number}` + (p.floored ? ' *' : '');
+          const td2=document.createElement('td'); td2.textContent = fmtUSD(round2(p.perAcre));
+          const td3=document.createElement('td'); td3.textContent = fmtUSD(round2(p.perAcre * acres));
           tr.append(td1,td2,td3); tbody.appendChild(tr);
         });
         $('#passesCell').textContent = q.passCount;
         $('#grandCell').textContent  = fmtUSD(q.fieldTotal);
 
-        // Payments (use Months, not passCount)
+        // payments use Months (not passes)
         $('#paymentCount').textContent = monthsVal;
         const payWrap = $('#payments'); payWrap.innerHTML='';
         equalPayments(q.fieldTotal, monthsVal).forEach((amt,i)=>{
@@ -203,6 +225,8 @@
         $('#perAcreTotal').textContent='Per-acre total: $—';
         $('#fieldTotal').textContent='Whole-field total: $—';
         $('#paymentCount').textContent='—';
+        $('#passesDisplay').value='';
+        $('#removePass').disabled = true;
       }
     }
 
@@ -213,6 +237,8 @@
     });
     $('#months').addEventListener('input', ()=>{ monthsTouched = true; render(); });
     $('#months').addEventListener('change', ()=>{ monthsTouched = true; render(); });
+    $('#removePass').addEventListener('click', ()=>{ removedPasses += 1; render(); });
+    $('#resetPasses').addEventListener('click', ()=>{ removedPasses = 0; render(); });
 
     // initial render
     render();
