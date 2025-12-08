@@ -1,83 +1,197 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pass Pricing Calculator</title>
-  <style>
-    :root{--yellow:#fff36a;--gray:#d9d9d9;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
-    *{box-sizing:border-box}
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
-         margin:0;background:#f8fafc;color:var(--ink)}
-    .wrap{max-width:1000px;margin:24px auto;background:#fff;border:1px solid var(--border);
-          border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.06)}
-    .bar{background:var(--gray);padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444}
-    .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
-    .header h1{margin:0;font-size:38px;font-weight:800}
-    .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:16px;background:#fff}
-    .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
-    .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
-    .field input{width:100%;font-size:18px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;outline:none}
-    .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-    .row-controls{display:flex;gap:8px;align-items:center}
-    button{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 10px;font-size:14px;cursor:pointer}
-    button:disabled{opacity:.5;cursor:not-allowed}
-    .hint{font-size:11px;color:#6b7280;margin-top:6px}
-    .grid{width:100%;border-collapse:collapse;margin:8px 0 0}
-    .grid th,.grid td{border:1px solid var(--border);padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums}
-    .grid th:first-child,.grid td:first-child{text-align:center}
-    .grid thead th{background:#eef2ff;font-weight:700}
-    .grid tfoot td{background:#f3f4f6;font-weight:700}
-    .row-hi{background:var(--yellow)}
-    .meta{display:flex;gap:16px;padding:0 16px 16px;align-items:center;flex-wrap:wrap}
-    .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600}
-    .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:10px;display:none;margin:0 16px 12px}
-    .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-top:2px solid var(--border);background:#fff;flex-wrap:wrap}
-    .payments{display:flex;flex-wrap:wrap;gap:8px}
-    .chip{border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 10px;font-size:12px}
-    .muted{color:#6b7280}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pass Pricing — Blocks</title>
+<style>
+  :root{--yellow:#fff36a;--gray:#d9d9d9;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+       margin:0;background:#f8fafc;color:var(--ink)}
+  .wrap{max-width:1100px;margin:24px auto;background:#fff;border:1px solid var(--border);
+        border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+  .bar{background:var(--gray);padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444;
+       display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .bar .right{display:flex;align-items:center;gap:8px}
+  .btn{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
+  .header h1{margin:0;font-size:28px;font-weight:800}
+  .card{border-top:1px solid var(--border)}
+  .card-head{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:0 16px 16px;background:#fff}
+  .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
+  .field input{width:100%;font-size:18px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;outline:none}
+  .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+  .hint{font-size:11px;color:#6b7280;margin-top:6px}
+  .row-controls{display:grid;grid-template-columns:1fr auto auto;gap:8px}
+  .grid{width:100%;border-collapse:collapse;margin:8px 0 16px}
+  .grid th,.grid td{border:1px solid var(--border);padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums}
+  .grid th:first-child,.grid td:first-child{text-align:center}
+  .grid thead th{background:#eef2ff;font-weight:700}
+  .grid tfoot td{background:#f3f4f6;font-weight:700}
+  .row-hi{background:var(--yellow)}
+  .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:10px;display:none;margin:0 16px 12px}
+  .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-top:2px solid var(--border);background:#fff;flex-wrap:wrap}
+  .payments{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--border);background:#fff;border-radius:999px;padding:6px 10px;font-size:12px}
+  .blocks{padding:0 16px 24px}
+  .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden}
+  .block .title{background:#f3f4f6;padding:10px 12px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+  .muted{color:#6b7280}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="bar">NAME</div>
-    <div class="header"><h1>Customer Name</h1></div>
+<div class="wrap">
+  <div class="bar">
+    <div>NAME</div>
+    <div class="right">
+      <span class="pill" id="blockCountPill">Blocks: 1</span>
+      <button class="btn" id="addBlock">+ Add Block</button>
+    </div>
+  </div>
 
-    <div id="err" class="notice"></div>
-
+  <!-- MASTER SUMMARY (ALL BLOCKS) -->
+  <div class="card" id="masterCard">
+    <div class="header"><h1>All Blocks — Summary</h1></div>
+    <div id="masterErr" class="notice"></div>
     <div class="inputs">
       <div class="field">
-        <label for="pins">Pin Count (whole number)</label>
-        <input id="pins" type="number" min="0" step="1" value="400" />
+        <label for="masterMonths">Months (payments for ALL blocks)</label>
+        <input id="masterMonths" type="number" min="1" max="12" step="1" value="" />
+        <div class="hint">Auto = max pass count across blocks; override 1–12.</div>
+      </div>
+    </div>
+    <div class="card-head">
+      <span class="pill" id="masterPassInfo">Passes: —</span>
+      <span class="pill" id="masterAcreInfo">Total Acres (included per pass): —</span>
+      <span class="pill" id="masterTotal">Whole-field total: $—</span>
+    </div>
+    <div style="padding:0 16px 0">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th style="width:120px">Pass</th>
+            <th>Cost / Acre (weighted)</th>
+            <th>Total Cost (sum across blocks)</th>
+          </tr>
+        </thead>
+        <tbody id="masterPassRows"></tbody>
+        <tfoot>
+          <tr>
+            <td style="text-align:center"># of Passes</td>
+            <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
+            <td id="masterGrandCell" style="text-align:right">$—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="foot">
+      <div class="muted">Payment plan (<span id="masterPaymentCount">—</span> equal payments):</div>
+      <div class="payments" id="masterPayments"></div>
+    </div>
+  </div>
+
+  <!-- BLOCKS LIST -->
+  <div class="blocks" id="blocks"></div>
+</div>
+
+<script>
+/*=====================  SHARED UTILS  =====================*/
+const DOLLARS_PER_PIN = 20;
+const FLOOR_PER_ACRE  = 20;
+
+const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
+const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
+const clamp  = (n,min,max) => Math.min(max, Math.max(min, n));
+
+function equalPayments(total, n){
+  if (n <= 0) return [];
+  const each = round2(total / n);
+  const list = Array.from({length:n-1}, ()=> each);
+  list.push(round2(total - list.reduce((a,b)=>a+b,0)));
+  return list;
+}
+
+function calcBase(pinCount, acres){
+  if (pinCount < 0 || !Number.isFinite(pinCount)) throw new Error('Pin count must be a whole number >= 0');
+  if (!(acres > 0)) throw new Error('Acres must be > 0');
+  const basePerAcre = (pinCount * DOLLARS_PER_PIN) / acres;
+  const autoCount = basePerAcre < 50 ? 4 : (basePerAcre < 100 ? 5 : 6); // 100 => 6
+  return { basePerAcre, autoCount };
+}
+
+function calcWithCount(pinCount, acres, passCount){
+  const { basePerAcre } = calcBase(pinCount, acres); // validation included
+  const passes = [];
+  let prev = basePerAcre;
+  for (let i=1;i<=passCount;i++){
+    let rate = (i===1) ? basePerAcre : (prev/2);
+    let floored = false;
+    if (rate < FLOOR_PER_ACRE){ rate = FLOOR_PER_ACRE; floored = true; }
+    prev = rate; // halving uses floored
+    passes.push({ number:i, perAcre:rate, floored });
+  }
+  const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
+  const fieldTotal   = round2(perAcreTotal * acres);
+  return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
+}
+
+/*=====================  STATE  =====================*/
+let blocks = []; // each: {id, pins, acres, removedPasses, monthsTouched, monthsVal}
+let masterMonthsTouched = false;
+let blockSeq = 1;
+
+// create initial block
+addBlock({ pins:400, acres:54 });
+
+/*=====================  DOM BUILDERS  =====================*/
+function blockTemplate(b){
+  const el = document.createElement('div');
+  el.className = 'block';
+  el.dataset.blockId = b.id;
+
+  el.innerHTML = `
+    <div class="title">
+      <div>Block ${b.id}</div>
+      <div class="muted">You can remove passes here. This does not affect other blocks.</div>
+    </div>
+    <div id="err-${b.id}" class="notice"></div>
+    <div class="inputs">
+      <div class="field">
+        <label for="pins-${b.id}">Pin Count (whole number)</label>
+        <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}" />
       </div>
       <div class="field">
-        <label for="acres">Acres (fractional allowed)</label>
-        <input id="acres" type="number" min="0" step="0.01" value="54" />
+        <label for="acres-${b.id}">Acres (fractional allowed)</label>
+        <input id="acres-${b.id}" type="number" min="0" step="0.01" value="${b.acres}" />
       </div>
       <div class="field">
-        <label for="months">Months (payments)</label>
-        <input id="months" type="number" min="1" max="12" step="1" value="" />
-        <div class="hint">Auto-fills to pass count; change to override (1–12).</div>
+        <label for="months-${b.id}">Months (payments)</label>
+        <input id="months-${b.id}" type="number" min="1" max="12" step="1" value="" />
+        <div class="hint">Auto = this block's pass count; override 1–12.</div>
       </div>
       <div class="field">
         <label>Passes (auto, can remove)</label>
         <div class="row-controls">
-          <input id="passesDisplay" type="text" value="" readonly style="width:120px" />
-          <button id="removePass">Remove 1 Pass</button>
-          <button id="resetPasses">Reset Passes</button>
+          <input id="passesDisplay-${b.id}" type="text" value="" readonly />
+          <button class="btn" id="removePass-${b.id}">Remove 1 Pass</button>
+          <button class="btn" id="resetPasses-${b.id}">Reset Passes</button>
         </div>
-        <div class="hint">Defaults to 4/5/6 based on base $/acre. You can remove passes (min 1).</div>
+        <div class="hint">Defaults to 4/5/6 by math. You can remove passes (min 1).</div>
       </div>
     </div>
 
-    <div class="meta">
-      <span class="pill" id="basePerAcre">Base: $— / acre</span>
-      <span class="pill" id="passCount">Passes: —</span>
-      <span class="pill" id="perAcreTotal">Per-acre total: $—</span>
-      <span class="pill" id="fieldTotal">Whole-field total: $—</span>
+    <div class="card-head">
+      <span class="pill" id="base-${b.id}">Base: $— / acre</span>
+      <span class="pill" id="passcount-${b.id}">Passes: —</span>
+      <span class="pill" id="total-${b.id}">Whole-field total: $—</span>
     </div>
 
-    <div style="padding:0 16px 16px">
+    <div style="padding:0 16px 0">
       <table class="grid">
         <thead>
           <tr>
@@ -86,162 +200,178 @@
             <th>Total Cost (this pass × acres)</th>
           </tr>
         </thead>
-        <tbody id="passRows"></tbody>
+        <tbody id="rows-${b.id}"></tbody>
         <tfoot>
           <tr>
             <td style="text-align:center"># of Passes</td>
-            <td id="passesCell" class="muted" style="text-align:center">—</td>
-            <td id="grandCell" style="text-align:right">$—</td>
+            <td id="passesCell-${b.id}" class="muted" style="text-align:center">—</td>
+            <td id="grandCell-${b.id}" style="text-align:right">$—</td>
           </tr>
         </tfoot>
       </table>
     </div>
 
     <div class="foot">
-      <div class="muted">Payment plan (<span id="paymentCount">—</span> equal payments):</div>
-      <div class="payments" id="payments"></div>
+      <div class="muted">Payment plan (<span id="paycount-${b.id}">—</span> equal payments):</div>
+      <div class="payments" id="payments-${b.id}"></div>
     </div>
-  </div>
+  `;
+  return el;
+}
 
-  <script>
-    // --- Config ---
-    const DOLLARS_PER_PIN = 20;
-    const FLOOR_PER_ACRE  = 20;
+/*=====================  RENDERING  =====================*/
+function renderAll(){
+  // Render each block, collect data for master
+  const masterRows = []; // index -> {totalCost, totalAcres}
+  const perBlockInfo = [];
 
-    // state for overrides
-    let monthsTouched   = false; // true once user edits Months
-    let removedPasses   = 0;     // how many passes the user removed from the auto count
+  blocks.forEach(b=>{
+    const err = document.getElementById(`err-${b.id}`);
+    try{
+      err.style.display = 'none';
 
-    const $ = s => document.querySelector(s);
-    const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
-    const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100; // half-up for positives
+      const pins  = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value));
+      const acres = Number(document.getElementById(`acres-${b.id}`).value);
 
-    function clamp(n,min,max){ return Math.min(max, Math.max(min, n)); }
+      const base = calcBase(pins, acres);
+      b.removedPasses = clamp(b.removedPasses, 0, base.autoCount-1);
+      const effPasses = clamp(base.autoCount - b.removedPasses, 1, 99);
 
-    function equalPayments(total, n){
-      if (n <= 0) return [];
-      const each = round2(total / n);
-      const list = Array.from({length: n-1}, () => each);
-      list.push(round2(total - list.reduce((a,b)=>a+b,0))); // adjust last to exact total
-      return list;
+      // months sync per block
+      const monthsInput = document.getElementById(`months-${b.id}`);
+      let monthsVal = Number(monthsInput.value);
+      if (!b.monthsTouched || !Number.isFinite(monthsVal)){ monthsVal = effPasses; monthsInput.value = monthsVal; }
+      monthsVal = clamp(Math.trunc(monthsVal), 1, 12);
+      if (monthsInput.value !== String(monthsVal)) monthsInput.value = monthsVal;
+      b.monthsVal = monthsVal;
+
+      const q = calcWithCount(pins, acres, effPasses);
+
+      // pills
+      document.getElementById(`base-${b.id}`).textContent = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
+      document.getElementById(`passcount-${b.id}`).textContent = `Passes: ${q.passCount}` + (b.removedPasses ? ` (auto ${base.autoCount}, removed ${b.removedPasses})` : '');
+      document.getElementById(`total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
+
+      // table rows
+      const tbody = document.getElementById(`rows-${b.id}`); tbody.innerHTML='';
+      q.passes.forEach(p=>{
+        const tr = document.createElement('tr');
+        if (p.number===1) tr.classList.add('row-hi');
+        const td1 = document.createElement('td'); td1.style.textAlign='center'; td1.textContent=`Pass ${p.number}` + (p.floored?' *':'');
+        const td2 = document.createElement('td'); td2.textContent=fmtUSD(round2(p.perAcre));
+        const td3 = document.createElement('td'); td3.textContent=fmtUSD(round2(p.perAcre * acres));
+        tr.append(td1,td2,td3); tbody.appendChild(tr);
+
+        // accumulate for master
+        const idx = p.number - 1;
+        masterRows[idx] = masterRows[idx] || { total:0, acres:0 };
+        masterRows[idx].total += round2(p.perAcre * acres);
+        masterRows[idx].acres += acres;
+      });
+
+      document.getElementById(`passesCell-${b.id}`).textContent = q.passCount;
+      document.getElementById(`grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
+
+      // payments
+      document.getElementById(`paycount-${b.id}`).textContent = monthsVal;
+      const payWrap = document.getElementById(`payments-${b.id}`); payWrap.innerHTML='';
+      equalPayments(q.fieldTotal, monthsVal).forEach((amt,i)=>{
+        const chip = document.createElement('div'); chip.className='chip';
+        chip.textContent = `Payment ${i+1}: ${fmtUSD(amt)}`;
+        payWrap.appendChild(chip);
+      });
+
+      // controls
+      document.getElementById(`passesDisplay-${b.id}`).value = `${q.passCount} (auto ${base.autoCount})`;
+      document.getElementById(`removePass-${b.id}`).disabled = q.passCount <= 1;
+
+      // keep for master
+      perBlockInfo.push({ effPasses, acres });
+    }catch(e){
+      err.style.display = 'block';
+      err.textContent = e.message;
     }
+  });
 
-    // Base calculation to get default (auto) pass count
-    function calcBase(pinCount, acres){
-      if (pinCount < 0 || !Number.isFinite(pinCount))
-        throw new Error('Pin count must be a whole number >= 0');
-      if (!(acres > 0))
-        throw new Error('Acres must be > 0');
-      const basePerAcre = (pinCount * DOLLARS_PER_PIN) / acres;
-      const autoCount = basePerAcre < 50 ? 4 : (basePerAcre < 100 ? 5 : 6); // 100 => 6
-      return { basePerAcre, autoCount };
-    }
+  // MASTER render
+  const maxPass = masterRows.length; // highest pass present
+  document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length}`;
 
-    // Full calculation using an effective pass count (after removals)
-    function calcWithCount(pinCount, acres, passCount){
-      const { basePerAcre } = calcBase(pinCount, acres); // reuse validation
-      const passes = [];
-      let prev = basePerAcre;
-      for (let i=1;i<=passCount;i++){
-        let rate = (i===1) ? basePerAcre : (prev/2);
-        let floored = false;
-        if (rate < FLOOR_PER_ACRE){ rate = FLOOR_PER_ACRE; floored = true; }
-        prev = rate; // halving uses floored value
-        passes.push({ number:i, perAcre:rate, floored });
-      }
-      const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
-      const fieldTotal   = round2(perAcreTotal * acres);
-      return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
-    }
+  // master months (auto to maxPass unless overridden)
+  const masterMonthsInput = document.getElementById('masterMonths');
+  let mVal = Number(masterMonthsInput.value);
+  if (!masterMonthsTouched || !Number.isFinite(mVal)){ mVal = maxPass || 1; masterMonthsInput.value = mVal; }
+  mVal = clamp(Math.trunc(mVal), 1, 12);
+  if (masterMonthsInput.value !== String(mVal)) masterMonthsInput.value = mVal;
 
-    function render(){
-      const pins  = Math.trunc(Number($('#pins').value));
-      const acres = Number($('#acres').value);
+  // build table
+  const mBody = document.getElementById('masterPassRows'); mBody.innerHTML='';
+  let masterTotal = 0, totalAcresShown = 0;
 
-      try{
-        $('#err').style.display='none';
+  for (let i=0;i<masterRows.length;i++){
+    const row = masterRows[i];
+    if (!row) continue;
+    const weightedPerAcre = row.acres > 0 ? round2(row.total / row.acres) : 0;
+    masterTotal += row.total;
+    totalAcresShown = row.acres; // last row's acres ~ should be same set as previous or subset; just informative
 
-        // base info & auto pass count
-        const base = calcBase(pins, acres);
-        // clamp removed passes so we never go below 1
-        removedPasses = clamp(removedPasses, 0, base.autoCount - 1);
-        const effectivePasses = clamp(base.autoCount - removedPasses, 1, 99);
+    const tr = document.createElement('tr');
+    if (i===0) tr.classList.add('row-hi');
+    const td1 = document.createElement('td'); td1.style.textAlign='center'; td1.textContent = `Pass ${i+1}`;
+    const td2 = document.createElement('td'); td2.textContent = fmtUSD(weightedPerAcre);
+    const td3 = document.createElement('td'); td3.textContent = fmtUSD(round2(row.total));
+    tr.append(td1,td2,td3); mBody.appendChild(tr);
+  }
 
-        // months: auto-follow effectivePasses unless user has overridden
-        let monthsVal = Number($('#months').value);
-        if (!monthsTouched || !Number.isFinite(monthsVal)){
-          monthsVal = effectivePasses;
-          $('#months').value = monthsVal;
-        }
-        monthsVal = clamp(Math.trunc(monthsVal), 1, 12);
-        if ($('#months').value !== String(monthsVal)) $('#months').value = monthsVal;
+  document.getElementById('masterPassInfo').textContent = `Passes: ${maxPass || '—'}`;
+  document.getElementById('masterAcreInfo').textContent = `Total Acres (varies by pass): ${perBlockInfo.reduce((s,b)=>s+b.acres,0) || 0}`;
+  document.getElementById('masterPassesCell').textContent = maxPass || '—';
+  document.getElementById('masterGrandCell').textContent  = fmtUSD(round2(masterTotal));
+  document.getElementById('masterTotal').textContent      = `Whole-field total: ${fmtUSD(round2(masterTotal))}`;
 
-        // full calc with effective pass count
-        const q = calcWithCount(pins, acres, effectivePasses);
+  // master payments
+  document.getElementById('masterPaymentCount').textContent = mVal;
+  const mp = document.getElementById('masterPayments'); mp.innerHTML='';
+  equalPayments(round2(masterTotal), mVal).forEach((amt,i)=>{
+    const chip = document.createElement('div'); chip.className='chip';
+    chip.textContent = `Payment ${i+1}: ${fmtUSD(amt)}`; mp.appendChild(chip);
+  });
+}
 
-        // top pills
-        $('#basePerAcre').textContent  = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
-        $('#passCount').textContent    = `Passes: ${q.passCount}` + (removedPasses ? ` (auto ${base.autoCount}, removed ${removedPasses})` : '');
-        $('#perAcreTotal').textContent = `Per-acre total: ${fmtUSD(round2(q.perAcreTotal))}`;
-        $('#fieldTotal').textContent   = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
+/*=====================  BLOCK MANAGEMENT  =====================*/
+function addBlock({pins=0, acres=1}={}){
+  const id = blockSeq++;
+  const b = { id, pins, acres, removedPasses:0, monthsTouched:false, monthsVal:null };
+  blocks.push(b);
 
-        // display field for passes
-        $('#passesDisplay').value = `${q.passCount} (auto ${base.autoCount})`;
-        $('#removePass').disabled = q.passCount <= 1;
+  const el = blockTemplate(b);
+  document.getElementById('blocks').appendChild(el);
 
-        // table rows
-        const tbody = $('#passRows'); tbody.innerHTML='';
-        q.passes.forEach(p=>{
-          const tr=document.createElement('tr');
-          if (p.number===1) tr.classList.add('row-hi');
-          const td1=document.createElement('td'); td1.style.textAlign='center';
-          td1.textContent = `Pass ${p.number}` + (p.floored ? ' *' : '');
-          const td2=document.createElement('td'); td2.textContent = fmtUSD(round2(p.perAcre));
-          const td3=document.createElement('td'); td3.textContent = fmtUSD(round2(p.perAcre * acres));
-          tr.append(td1,td2,td3); tbody.appendChild(tr);
-        });
-        $('#passesCell').textContent = q.passCount;
-        $('#grandCell').textContent  = fmtUSD(q.fieldTotal);
+  // wire events
+  const evs = ['input','change'];
+  evs.forEach(e=>{
+    document.getElementById(`pins-${id}`).addEventListener(e, renderAll);
+    document.getElementById(`acres-${id}`).addEventListener(e, renderAll);
+  });
+  document.getElementById(`months-${id}`).addEventListener('input', ()=>{ b.monthsTouched = true; renderAll(); });
+  document.getElementById(`months-${id}`).addEventListener('change', ()=>{ b.monthsTouched = true; renderAll(); });
+  document.getElementById(`removePass-${id}`).addEventListener('click', ()=>{ b.removedPasses += 1; renderAll(); });
+  document.getElementById(`resetPasses-${id}`).addEventListener('click', ()=>{ b.removedPasses = 0; renderAll(); });
 
-        // payments use Months (not passes)
-        $('#paymentCount').textContent = monthsVal;
-        const payWrap = $('#payments'); payWrap.innerHTML='';
-        equalPayments(q.fieldTotal, monthsVal).forEach((amt,i)=>{
-          const chip=document.createElement('div');
-          chip.className='chip';
-          chip.textContent=`Payment ${i+1}: ${fmtUSD(amt)}`;
-          payWrap.appendChild(chip);
-        });
+  // initial values in inputs
+  document.getElementById(`pins-${id}`).value  = pins;
+  document.getElementById(`acres-${id}`).value = acres;
 
-      }catch(err){
-        $('#err').style.display='block';
-        $('#err').textContent=err.message;
-        $('#passRows').innerHTML='';
-        $('#passesCell').textContent='—';
-        $('#grandCell').textContent='$—';
-        $('#payments').innerHTML='';
-        $('#basePerAcre').textContent='Base: $— / acre';
-        $('#passCount').textContent='Passes: —';
-        $('#perAcreTotal').textContent='Per-acre total: $—';
-        $('#fieldTotal').textContent='Whole-field total: $—';
-        $('#paymentCount').textContent='—';
-        $('#passesDisplay').value='';
-        $('#removePass').disabled = true;
-      }
-    }
+  renderAll();
+}
 
-    // events
-    ['input','change'].forEach(evt=>{
-      $('#pins').addEventListener(evt, render);
-      $('#acres').addEventListener(evt, render);
-    });
-    $('#months').addEventListener('input', ()=>{ monthsTouched = true; render(); });
-    $('#months').addEventListener('change', ()=>{ monthsTouched = true; render(); });
-    $('#removePass').addEventListener('click', ()=>{ removedPasses += 1; render(); });
-    $('#resetPasses').addEventListener('click', ()=>{ removedPasses = 0; render(); });
+/*=====================  GLOBAL CONTROLS  =====================*/
+document.getElementById('addBlock').addEventListener('click', ()=> addBlock({pins:0, acres:1}));
+document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
+document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched = true; renderAll(); });
 
-    // initial render
-    render();
-  </script>
+/*=====================  BOOT  =====================*/
+renderAll();
+</script>
 </body>
 </html>
