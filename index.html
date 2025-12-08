@@ -46,8 +46,8 @@
   .muted{color:#6b7280}
   .inactive{opacity:.55; filter:grayscale(0.4)}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
-  .adj-row{display:flex;align-items:center;gap:8px}
-  .adj-row .btn{padding:6px 10px}
+  .adj-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .adj-inline .btn{padding:6px 10px}
   .inline-note{font-size:12px;color:#6b7280}
 </style>
 </head>
@@ -57,7 +57,8 @@
     <div>NAME</div>
     <div class="right">
       <span class="pill" id="blockCountPill">Blocks: 1 (active 1)</span>
-      <button class="btn" id="addBlock">+ Add Block</button>
+      <!-- renamed to avoid function name collisions -->
+      <button class="btn" id="addBlockBtn">+ Add Block</button>
     </div>
   </div>
 
@@ -65,6 +66,7 @@
   <div class="card" id="masterCard">
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
+
     <div class="inputs">
       <div class="field">
         <label for="masterMonths">Months (payments for ALL blocks)</label>
@@ -81,22 +83,22 @@
         <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
         <div class="hint">Applies to all blocks unless a block sets its own override.</div>
       </div>
-      <div class="field">
-        <label>Total adjustment (%)</label>
-        <div class="adj-row">
-          <button class="btn" id="adjMinus">−1%</button>
-          <input id="masterAdjPct" type="number" step="1" min="-100" max="100" value="0" style="max-width:110px" />
-          <button class="btn" id="adjPlus">+1%</button>
-        </div>
-        <div class="hint">Applies to the grand total only; payments use the <b>adjusted</b> total.</div>
-      </div>
     </div>
+
     <div class="card-head">
       <span class="pill" id="masterPassInfo">Passes: —</span>
       <span class="pill" id="masterAcreInfo">Total Acres (included): —</span>
-      <span class="pill" id="masterTotal">Whole-field total: $—</span>
-      <span class="pill" id="masterAdjTotal">Adjusted total: $— <span id="masterAdjNote" class="inline-note"></span></span>
+
+      <!-- Whole-field total + inline adjustment controls -->
+      <div class="adj-inline">
+        <span class="pill" id="masterTotal">Whole-field total: $—</span>
+        <button class="btn" id="adjMinus">−1%</button>
+        <input id="masterAdjPct" type="number" step="1" min="-100" max="100" value="0" style="max-width:110px" />
+        <button class="btn" id="adjPlus">+1%</button>
+        <span class="pill" id="masterAdjTotal">Adjusted total: $— <span id="masterAdjNote" class="inline-note"></span></span>
+      </div>
     </div>
+
     <div style="padding:0 16px 0">
       <table class="grid">
         <thead>
@@ -116,6 +118,7 @@
         </tfoot>
       </table>
     </div>
+
     <div class="foot">
       <div class="muted">Payment plan (<span id="masterPaymentCount">—</span> equal payments):</div>
       <div class="payments" id="masterPayments"></div>
@@ -170,10 +173,7 @@ let blocks = []; // each: {id, pins, acres, include, removedPasses, monthsTouche
 let masterMonthsTouched = false;
 let blockSeq = 1;
 
-// initial block
-addBlock({ pins:400, acres:54 });
-
-/*=====================  DOM BUILDERS  =====================*/
+/*=====================  BLOCK TEMPLATE  =====================*/
 function blockTemplate(b){
   const el = document.createElement('div');
   el.className = 'block';
@@ -279,6 +279,9 @@ function renderAll(){
   let masterAdjPct = Number(document.getElementById('masterAdjPct').value);
   if (!Number.isFinite(masterAdjPct)) masterAdjPct = 0;
   masterAdjPct = clamp(Math.trunc(masterAdjPct), -100, 100);
+  if (String(masterAdjPct) !== document.getElementById('masterAdjPct').value) {
+    document.getElementById('masterAdjPct').value = masterAdjPct;
+  }
 
   // Render blocks; collect data for master from INCLUDED blocks only
   const masterRows = []; // index -> {total, acres}
@@ -301,7 +304,7 @@ function renderAll(){
       // floor override
       const floorInput = document.getElementById(`floor-${b.id}`);
       let floorVal = Number(floorInput.value);
-      let hasFloorOverride = Number.isFinite(floorVal) && floorInput.value !== '';
+      const hasFloorOverride = Number.isFinite(floorVal) && floorInput.value !== '';
       if (!hasFloorOverride) floorVal = masterFloor;
       floorVal = clamp(round2(floorVal), 0, 1e9);
       document.getElementById(`effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(floorVal)}/acre`;
@@ -310,7 +313,7 @@ function renderAll(){
       // $/pin override
       const dppInput = document.getElementById(`dpp-${b.id}`);
       let dppVal = Number(dppInput.value);
-      let hasDppOverride = Number.isFinite(dppVal) && dppInput.value !== '';
+      const hasDppOverride = Number.isFinite(dppVal) && dppInput.value !== '';
       if (!hasDppOverride) dppVal = masterDpp;
       dppVal = clamp(round2(dppVal), 0, 1e9);
       document.getElementById(`effectiveDpp-${b.id}`).textContent = `$/pin: ${fmtUSD(dppVal)}`;
@@ -416,7 +419,7 @@ function renderAll(){
   document.getElementById('masterGrandCell').textContent  = fmtUSD(baseTotal);
   document.getElementById('masterTotal').textContent      = `Whole-field total: ${fmtUSD(baseTotal)}`;
 
-  // adjustment & payments
+  // adjustment & payments (moved inline next to total; always recalculated)
   const adjFactor = 1 + (masterAdjPct/100);
   const adjTotal  = round2(baseTotal * adjFactor);
   document.getElementById('masterAdjTotal').textContent = `Adjusted total: ${fmtUSD(adjTotal)} `;
@@ -431,7 +434,7 @@ function renderAll(){
 }
 
 /*=====================  BLOCK MANAGEMENT  =====================*/
-function addBlock({pins=0, acres=1}={}){
+function addNewBlock({pins=0, acres=1}={}){
   const id = blockSeq++;
   const b = {
     id, pins, acres,
@@ -468,7 +471,8 @@ function addBlock({pins=0, acres=1}={}){
 }
 
 /*=====================  GLOBAL CONTROLS  =====================*/
-document.getElementById('addBlock').addEventListener('click', ()=> addBlock({pins:0, acres:1}));
+// renamed button id to avoid collisions with function names in some browsers
+document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1}));
 document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterFloor').addEventListener('input', renderAll);
@@ -489,6 +493,7 @@ document.getElementById('adjPlus').addEventListener('click', ()=>{
 });
 
 /*=====================  BOOT  =====================*/
+addNewBlock({ pins:400, acres:54 });
 renderAll();
 </script>
 </body>
