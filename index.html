@@ -50,16 +50,17 @@
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* Single pill header (solid light grey on white, NO border) */
-  .title{background:#fff;padding:10px 0}
+  /* SINGLE header pill — solid light grey on pure white, no “outer pill”, no focus halo */
+  .title{background:#fff;padding:0} /* pure white behind; removes any surrounding shape */
   .toggle-zone{
-    margin:0 12px;
+    margin:12px;                          /* breathing room from block edges */
     display:flex; align-items:center; justify-content:space-between; gap:12px;
-    background:#f3f4f6; /* solid light grey */
-    border:none; border-radius:9999px; padding:10px 14px;
+    background:#f3f4f6;                   /* solid light grey pill */
+    border:none; border-radius:9999px; padding:12px 16px;
     cursor:pointer; outline:none; color:#111827;
+    box-shadow:none;                       /* no halo */
   }
-  .toggle-zone:focus{box-shadow:0 0 0 3px rgba(100,116,139,.25)}
+  .toggle-zone:focus{outline:none; box-shadow:none}  /* remove “second pill” look */
   .tz-left{display:flex;align-items:center;gap:10px;font-weight:700}
   .tz-right{display:flex;align-items:center;gap:14px}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
@@ -208,6 +209,7 @@ function blockHTML(b){
   return `
   <div class="block${b.collapsed?' collapsed':''}" data-block-id="${b.id}">
     <div class="title">
+      <!-- single, solid grey pill; nothing surrounds it -->
       <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
         <div class="tz-left">
           <span>Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
@@ -382,8 +384,9 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjPerAcre = round2(perAcre * (1 + (Number(document.getElementById('masterAdjPct').value)||0)/100));
-      const adjRowTotal= round2(baseRowTotal * (1 + (Number(document.getElementById('masterAdjPct').value)||0)/100));
+      const adjFactor = 1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100);
+      const adjPerAcre = round2(perAcre * adjFactor);
+      const adjRowTotal= round2(baseRowTotal * adjFactor);
       baseTotal += baseRowTotal; masterHours += hoursPass;
 
       const tr = document.createElement('tr');
@@ -444,14 +447,12 @@ function wireEvents(){
   const blocksEl = document.getElementById('blocks');
 
   blocksEl.addEventListener('click', (e)=>{
-    // 1) If the click is on the include toggle area, DO NOT collapse
+    // If click is on the INCLUDE switch area, don't toggle collapse
     if (e.target.closest('.switch')) {
-      // let the checkbox toggle naturally; then re-render
       setTimeout(renderAll, 0);
       return;
     }
-
-    // 2) Per-block add/remove pass buttons
+    // Per-block add/remove
     const btn = e.target.closest('button.btn');
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
@@ -484,8 +485,7 @@ function wireEvents(){
       renderAll();
       return;
     }
-
-    // 3) Toggle collapse only when header (not include switch) is clicked
+    // Toggle collapse when header (not switch) is clicked
     const tz = e.target.closest('.toggle-zone');
     if (tz){
       const id = Number(tz.id.replace('toggle-zone-',''));
