@@ -24,7 +24,7 @@
 
   /* Master inputs with comfortable top padding */
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-          gap:16px;padding:16px 16px;background:#fff}
+          gap:16px;padding:16px;background:#fff}
   .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
   .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
   .field input{width:100%;font-size:18px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;outline:none}
@@ -53,7 +53,7 @@
     background:#fff; border:1px solid #d1d5db; border-radius:12px; padding:10px 12px;
     cursor:pointer; outline:none; color:#111827;
   }
-  .toggle-zone:hover{background:#fff}            /* stays white */
+  .toggle-zone:hover{background:#fff}
   .toggle-zone:focus{box-shadow:0 0 0 3px rgba(100,116,139,.25)}
   .tz-left{display:flex;align-items:center;gap:10px; font-weight:700}
   .tz-right{display:flex;align-items:center;gap:14px}
@@ -81,7 +81,7 @@
 
   <!-- MASTER SUMMARY -->
   <div class="card" id="masterCard">
-    <div class="header><h1>All Blocks — Summary</h1></div>
+    <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
     <div class="inputs">
@@ -188,7 +188,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
     let rate = (i===1) ? basePerAcre : (prev/2);
     let floored = false;
     if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
-    prev = rate;
+    prev = rate; // halving uses floored
     passes.push({ number:i, perAcre:rate, floored });
   }
   const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
@@ -291,12 +291,13 @@ function blockTemplate(b){
 
 /* ========= Render ========= */
 function renderAll(){
+  // master inputs (with guards)
   let masterFloor = Number(document.getElementById('masterFloor').value);
-  if (!(masterFloor >= 0)) masterFloor = 20;
+  if (!Number.isFinite(masterFloor) || masterFloor < 0) masterFloor = 20;
   masterFloor = round2(masterFloor);
 
   let masterDpp = Number(document.getElementById('masterDpp').value);
-  if (!(masterDpp >= 0)) masterDpp = 20;
+  if (!Number.isFinite(masterDpp) || masterDpp < 0) masterDpp = 20;
   masterDpp = round2(masterDpp);
 
   let masterAdjPct = Number(document.getElementById('masterAdjPct')?.value || 0);
@@ -304,7 +305,8 @@ function renderAll(){
   masterAdjPct = clamp(Math.trunc(masterAdjPct), -100, 100);
   const adjFactor = 1 + (masterAdjPct/100);
 
-  const masterRows = [];
+  // aggregate rows from INCLUDED blocks
+  const masterRows = []; // idx -> { total, acres }
   let totalActiveAcres = 0;
   let activeBlocks = 0;
 
@@ -321,6 +323,7 @@ function renderAll(){
       const pins  = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value));
       const acres = Number(document.getElementById(`acres-${b.id}`).value);
 
+      // effective floors & $/pin
       const floorInput = document.getElementById(`floor-${b.id}`);
       let floorVal = Number(floorInput.value);
       const hasFloorOverride = Number.isFinite(floorVal) && floorInput.value !== '';
@@ -337,17 +340,21 @@ function renderAll(){
       document.getElementById(`effectiveDpp-${b.id}`).textContent = `$/pin: ${fmtUSD(dppVal)}`;
       dppInput.placeholder = `${masterDpp}`;
 
+      // effective passes
       const base = calcBase(pins, acres, dppVal);
       const effPasses = clamp((base.autoCount + (b.addedPasses||0) - (b.removedPasses||0)), 1, 8);
 
+      // calc
       const q = calcWithCount(pins, acres, effPasses, floorVal, dppVal);
 
+      // header readouts
       const hoursSumForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/180), 0);
       document.getElementById(`pillHours-${b.id}`).textContent = hoursSumForPill.toFixed(2);
       document.getElementById(`base-${b.id}`).textContent = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
       document.getElementById(`passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
       document.getElementById(`total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
+      // rows + hours + aggregate
       const tbody = document.getElementById(`rows-${b.id}`); tbody.innerHTML='';
       let hoursSum = 0;
       q.passes.forEach(p=>{
@@ -384,17 +391,25 @@ function renderAll(){
     }
   });
 
+  // Master table build
   const maxPass = masterRows.length;
   document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
+  // months auto/override
   const masterMonthsInput = document.getElementById('masterMonths');
   let mVal = Number(masterMonthsInput.value);
-  if (!masterMonthsTouched || !Number.isFinite(mVal)){ mVal = maxPass || 1; masterMonthsInput.value = mVal; }
+  if (!masterMonthsTouched || !Number.isFinite(mVal)){
+    mVal = maxPass || 1;
+    masterMonthsInput.value = mVal;
+  }
   mVal = clamp(Math.trunc(mVal), 1, 12);
   if (masterMonthsInput.value !== String(mVal)) masterMonthsInput.value = mVal;
 
+  // rows
   const mBody = document.getElementById('masterPassRows'); mBody.innerHTML='';
-  let baseTotal = 0, masterHours = 0, adjPassSum = 0;
+  let baseTotal = 0, masterHours = 0;
+
+  const adjFactor = 1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100);
 
   for (let i=0;i<masterRows.length;i++){
     const row = masterRows[i];
@@ -404,12 +419,11 @@ function renderAll(){
     const perAcre      = row.acres > 0 ? round2(baseRowTotal / row.acres) : 0;
     const hoursPass    = round2(baseRowTotal / 180);
 
-    const adjPerAcre   = round2(perAcre * (1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100)));
-    const adjRowTotal  = round2(baseRowTotal * (1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100)));
+    const adjPerAcre   = round2(perAcre * adjFactor);
+    const adjRowTotal  = round2(baseRowTotal * adjFactor);
 
     baseTotal  += baseRowTotal;
     masterHours+= hoursPass;
-    adjPassSum += adjRowTotal;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -424,14 +438,16 @@ function renderAll(){
     mBody.appendChild(tr);
   }
 
+  // footer totals
   document.getElementById('masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)}`;
   document.getElementById('masterPassesCell').textContent = maxPass || '—';
   document.getElementById('masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
   document.getElementById('masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
 
-  const adjTotal = round2(baseTotal * (1 + ( (Number(document.getElementById('masterAdjPct').value)||0 )/100 )));
+  const adjTotal = round2(baseTotal * adjFactor);
   document.getElementById('masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
 
+  // master payments: single pill text
   const payments = equalPayments(adjTotal, mVal);
   const per = payments.length ? payments[0] : 0;
   document.getElementById('masterPaymentPill').textContent = `${mVal} payments of ${fmtUSD(per)}`;
@@ -446,6 +462,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const el = blockTemplate(b);
   document.getElementById('blocks').appendChild(el);
 
+  // inputs
   ['input','change'].forEach(e=>{
     document.getElementById(`pins-${id}`).addEventListener(e, renderAll);
     document.getElementById(`acres-${id}`).addEventListener(e, renderAll);
@@ -453,6 +470,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     document.getElementById(`dpp-${id}`).addEventListener(e, renderAll);
   });
 
+  // per-block pass controls
   document.getElementById(`removePass-${id}`).addEventListener('click', ()=>{
     const bb = blocks.find(x=>x.id===id);
     const pins = Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
@@ -463,8 +481,8 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     const base = calcBase(pins, acres>0?acres:1, effDpp);
     const eff = clamp(base.autoCount + (bb.addedPasses||0) - (bb.removedPasses||0), 1, 8);
     if (eff > 1){
-      if ((bb.addedPasses||0) > 0) bb.addedPasses -= 1;
-      else bb.removedPasses = (bb.removedPasses||0) + 1;
+      if ((bb.addedPasses||0) > 0) { bb.addedPasses -= 1; }
+      else { bb.removedPasses = (bb.removedPasses||0) + 1; }
       renderAll();
     }
   });
@@ -480,11 +498,13 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     if (eff < 8){ bb.addedPasses = (bb.addedPasses||0) + 1; renderAll(); }
   });
 
+  // include inside header: stop toggle when clicking the checkbox/label
   const includeWrap = document.getElementById(`include-wrap-${id}`);
   includeWrap.addEventListener('click', e => e.stopPropagation());
   document.getElementById(`include-${id}`).addEventListener('click', e => { e.stopPropagation(); renderAll(); });
   document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
+  // header toggle (mouse + keyboard)
   const tz = document.getElementById(`toggle-zone-${id}`);
   const toggle = ()=>{
     const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
@@ -496,6 +516,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
   });
 
+  // seed values
   document.getElementById(`pins-${id}`).value  = pins;
   document.getElementById(`acres-${id}`).value = acres;
 
@@ -503,7 +524,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 }
 
 /* ========= Global controls ========= */
-document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins=0, acres:1, collapsed:true}));
+document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
 document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterFloor').addEventListener('input', renderAll);
