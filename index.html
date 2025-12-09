@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Pass Pricing — Blocks, Hours, Adjusted Columns</title>
 <style>
-  :root{--yellow:#fff36a;--gray:#e5e7eb;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
+  :root{--yellow:#fff36a;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
   *{box-sizing:border-box}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
        margin:0;background:#f8fafc;color:var(--ink)}
@@ -21,15 +21,17 @@
   .card{border-top:1px solid var(--border)}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
   .pill.inline{padding:6px 10px}
-  /* Master inputs: add top padding so they don’t hug the border */
+
+  /* Master inputs with comfortable top padding */
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-          gap:16px;padding:16px 16px 16px;background:#fff}
+          gap:16px;padding:16px 16px;background:#fff}
   .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
   .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
   .field input{width:100%;font-size:18px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;outline:none}
   .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
   .hint{font-size:11px;color:#6b7280;margin-top:6px}
   .muted{color:#6b7280}
+
   .grid{width:100%;border-collapse:collapse;margin:8px 0 16px}
   .grid th,.grid td{border:1px solid var(--border);padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums}
   .grid th:first-child,.grid td:first-child{text-align:center}
@@ -37,23 +39,24 @@
   .grid tfoot td{background:#f3f4f6;font-weight:700;vertical-align:top}
   .row-hi{background:var(--yellow)}
   .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:10px;display:none;margin:0 16px 12px}
+
   .blocks{padding:0 16px 24px}
   .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
   .inactive{opacity:.55; filter:grayscale(0.4)}
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* Grey header "button" spanning Block… through $/pin + Include */
+  /* Header: single-color, white background button */
   .title{background:#f3f4f6;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .toggle-zone{
     flex:1; display:flex; align-items:center; justify-content:space-between; gap:12px;
-    background:var(--gray); border:1px solid #cbd5e1; border-radius:12px; padding:10px 12px;
-    cursor:pointer; outline:none;
+    background:#fff; border:1px solid #d1d5db; border-radius:12px; padding:10px 12px;
+    cursor:pointer; outline:none; color:#111827;
   }
-  .toggle-zone:hover{background:#e2e8f0}
+  .toggle-zone:hover{background:#fff}            /* stays white */
   .toggle-zone:focus{box-shadow:0 0 0 3px rgba(100,116,139,.25)}
-  .tz-left{display:flex;align-items:center;gap:10px; font-weight:700; color:#111827}
-  .tz-right{display:flex;align-items:center;gap:14px; color:#1f2937}
+  .tz-left{display:flex;align-items:center;gap:10px; font-weight:700}
+  .tz-right{display:flex;align-items:center;gap:14px}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .switch input{transform:scale(1.1)}
 
@@ -78,7 +81,7 @@
 
   <!-- MASTER SUMMARY -->
   <div class="card" id="masterCard">
-    <div class="header"><h1>All Blocks — Summary</h1></div>
+    <div class="header><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
     <div class="inputs">
@@ -144,7 +147,6 @@
       </table>
     </div>
 
-    <!-- Payments: single pill, inset from border -->
     <div class="foot" style="justify-content:flex-start">
       <span class="muted">Payment plan:</span>
       <span class="pill inline" id="masterPaymentPill">—</span>
@@ -186,7 +188,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
     let rate = (i===1) ? basePerAcre : (prev/2);
     let floored = false;
     if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
-    prev = rate; // halving uses floored
+    prev = rate;
     passes.push({ number:i, perAcre:rate, floored });
   }
   const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
@@ -208,7 +210,6 @@ function blockTemplate(b){
 
   el.innerHTML = `
     <div class="title">
-      <!-- Grey clickable header button -->
       <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
         <div class="tz-left">
           <span>Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
@@ -290,7 +291,6 @@ function blockTemplate(b){
 
 /* ========= Render ========= */
 function renderAll(){
-  // master inputs
   let masterFloor = Number(document.getElementById('masterFloor').value);
   if (!(masterFloor >= 0)) masterFloor = 20;
   masterFloor = round2(masterFloor);
@@ -304,8 +304,7 @@ function renderAll(){
   masterAdjPct = clamp(Math.trunc(masterAdjPct), -100, 100);
   const adjFactor = 1 + (masterAdjPct/100);
 
-  // aggregate rows from INCLUDED blocks
-  const masterRows = []; // idx -> { total, acres }
+  const masterRows = [];
   let totalActiveAcres = 0;
   let activeBlocks = 0;
 
@@ -322,7 +321,6 @@ function renderAll(){
       const pins  = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value));
       const acres = Number(document.getElementById(`acres-${b.id}`).value);
 
-      // effective floors & dpp
       const floorInput = document.getElementById(`floor-${b.id}`);
       let floorVal = Number(floorInput.value);
       const hasFloorOverride = Number.isFinite(floorVal) && floorInput.value !== '';
@@ -339,21 +337,17 @@ function renderAll(){
       document.getElementById(`effectiveDpp-${b.id}`).textContent = `$/pin: ${fmtUSD(dppVal)}`;
       dppInput.placeholder = `${masterDpp}`;
 
-      // effective passes
       const base = calcBase(pins, acres, dppVal);
       const effPasses = clamp((base.autoCount + (b.addedPasses||0) - (b.removedPasses||0)), 1, 8);
 
-      // calc
       const q = calcWithCount(pins, acres, effPasses, floorVal, dppVal);
 
-      // header readouts
       const hoursSumForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/180), 0);
       document.getElementById(`pillHours-${b.id}`).textContent = hoursSumForPill.toFixed(2);
       document.getElementById(`base-${b.id}`).textContent = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
       document.getElementById(`passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
       document.getElementById(`total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
-      // rows + hours + aggregate
       const tbody = document.getElementById(`rows-${b.id}`); tbody.innerHTML='';
       let hoursSum = 0;
       q.passes.forEach(p=>{
@@ -390,18 +384,15 @@ function renderAll(){
     }
   });
 
-  // Master table build
   const maxPass = masterRows.length;
   document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-  // months auto/override
   const masterMonthsInput = document.getElementById('masterMonths');
   let mVal = Number(masterMonthsInput.value);
   if (!masterMonthsTouched || !Number.isFinite(mVal)){ mVal = maxPass || 1; masterMonthsInput.value = mVal; }
   mVal = clamp(Math.trunc(mVal), 1, 12);
   if (masterMonthsInput.value !== String(mVal)) masterMonthsInput.value = mVal;
 
-  // rows
   const mBody = document.getElementById('masterPassRows'); mBody.innerHTML='';
   let baseTotal = 0, masterHours = 0, adjPassSum = 0;
 
@@ -413,8 +404,8 @@ function renderAll(){
     const perAcre      = row.acres > 0 ? round2(baseRowTotal / row.acres) : 0;
     const hoursPass    = round2(baseRowTotal / 180);
 
-    const adjPerAcre   = round2(perAcre * adjFactor);
-    const adjRowTotal  = round2(baseRowTotal * adjFactor);
+    const adjPerAcre   = round2(perAcre * (1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100)));
+    const adjRowTotal  = round2(baseRowTotal * (1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100)));
 
     baseTotal  += baseRowTotal;
     masterHours+= hoursPass;
@@ -433,16 +424,14 @@ function renderAll(){
     mBody.appendChild(tr);
   }
 
-  // footer totals
   document.getElementById('masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)}`;
   document.getElementById('masterPassesCell').textContent = maxPass || '—';
   document.getElementById('masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
   document.getElementById('masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
 
-  const adjTotal = round2(baseTotal * adjFactor);
+  const adjTotal = round2(baseTotal * (1 + ( (Number(document.getElementById('masterAdjPct').value)||0 )/100 )));
   document.getElementById('masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
 
-  // master payments: single pill text
   const payments = equalPayments(adjTotal, mVal);
   const per = payments.length ? payments[0] : 0;
   document.getElementById('masterPaymentPill').textContent = `${mVal} payments of ${fmtUSD(per)}`;
@@ -457,7 +446,6 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const el = blockTemplate(b);
   document.getElementById('blocks').appendChild(el);
 
-  // inputs
   ['input','change'].forEach(e=>{
     document.getElementById(`pins-${id}`).addEventListener(e, renderAll);
     document.getElementById(`acres-${id}`).addEventListener(e, renderAll);
@@ -465,7 +453,6 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     document.getElementById(`dpp-${id}`).addEventListener(e, renderAll);
   });
 
-  // pass controls
   document.getElementById(`removePass-${id}`).addEventListener('click', ()=>{
     const bb = blocks.find(x=>x.id===id);
     const pins = Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
@@ -493,13 +480,11 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     if (eff < 8){ bb.addedPasses = (bb.addedPasses||0) + 1; renderAll(); }
   });
 
-  // include inside header: stop toggle when clicking the checkbox/label
   const includeWrap = document.getElementById(`include-wrap-${id}`);
   includeWrap.addEventListener('click', e => e.stopPropagation());
   document.getElementById(`include-${id}`).addEventListener('click', e => { e.stopPropagation(); renderAll(); });
   document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
-  // header toggle (mouse + keyboard)
   const tz = document.getElementById(`toggle-zone-${id}`);
   const toggle = ()=>{
     const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
@@ -511,7 +496,6 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
   });
 
-  // seed values
   document.getElementById(`pins-${id}`).value  = pins;
   document.getElementById(`acres-${id}`).value = acres;
 
@@ -519,7 +503,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 }
 
 /* ========= Global controls ========= */
-document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
+document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins=0, acres:1, collapsed:true}));
 document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterFloor').addEventListener('input', renderAll);
