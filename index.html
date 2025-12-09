@@ -45,10 +45,11 @@
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
-  /* Adjust-by-% tidy stack */
+  /* Adjust-by-% tidy stack in Adjusted Total column */
   .adj-inline{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
   .adj-controls{display:flex;align-items:center;gap:8px}
   .adj-controls input{max-width:110px}
+  .pay-pill{padding:6px 10px; display:inline-block}
 </style>
 </head>
 <body>
@@ -114,26 +115,28 @@
             <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
             <td></td>
             <td id="masterHoursCell" style="text-align:right">— h</td>
-            <td id="masterGrandCell" style="text-align:right">
-              <div id="masterBaseTotal">$—</div>
-              <div class="adj-inline" style="margin-top:6px">
+            <!-- Column 5: base total only -->
+            <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
+            <!-- Column 6: adjuster + light-blue adjusted total pill -->
+            <td id="masterAdjCell" style="text-align:right">
+              <div class="adj-inline">
                 <div class="adj-controls">
                   <button class="btn" id="adjMinus">−1%</button>
                   <input id="masterAdjPct" type="number" step="1" min="-100" max="100" value="0" />
                   <button class="btn" id="adjPlus">+1%</button>
                 </div>
-                <span class="pill" id="masterAdjTotal" style="padding:6px 10px">Adjusted: $—</span>
+                <span class="pill pay-pill" id="masterAdjTotalPill">Adjusted Total: $—</span>
               </div>
             </td>
-            <td id="masterAdjPassSum" style="text-align:right">$—</td>
           </tr>
         </tfoot>
       </table>
     </div>
 
-    <div class="foot">
-      <div class="muted">Payment plan (<span id="masterPaymentCount">—</span> equal payments):</div>
-      <div class="payments" id="masterPayments"></div>
+    <!-- Payments: single pill -->
+    <div class="foot" style="justify-content:flex-start; gap:12px">
+      <span class="muted">Payment plan:</span>
+      <span class="pill pay-pill" id="masterPaymentPill">—</span>
     </div>
   </div>
 
@@ -228,7 +231,7 @@ function blockTemplate(b){
         </div>
         <div class="field">
           <label for="dpp-${b.id}">$ per pin (optional override)</label>
-          <input id="dpp-${b.id}` + `" type="number" min="0" step="0.01" placeholder="">
+          <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
           <div class="hint">Leave blank to use master $/pin.</div>
         </div>
         <div class="field">
@@ -427,17 +430,12 @@ function renderAll(){
   document.getElementById('masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
 
   const adjTotal = round2(baseTotal * adjFactor);
-  document.getElementById('masterAdjTotal').textContent = `Adjusted: ${fmtUSD(adjTotal)}`;
-  document.getElementById('masterAdjPassSum').textContent = fmtUSD(round2(adjPassSum));
+  document.getElementById('masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
 
-  // master payments (use adjusted total)
-  document.getElementById('masterPaymentCount').textContent = mVal;
-  const mp = document.getElementById('masterPayments'); mp.innerHTML='';
-  equalPayments(adjTotal, mVal).forEach((amt,i)=>{
-    const chip = document.createElement('div'); chip.className='chip';
-    chip.textContent = `Payment ${i+1}: ${fmtUSD(amt)}`;
-    mp.appendChild(chip);
-  });
+  // master payments: single pill text
+  const payments = equalPayments(adjTotal, mVal);
+  const per = payments.length ? payments[0] : 0;
+  document.getElementById('masterPaymentPill').textContent = `${mVal} payments of ${fmtUSD(per)}`;
 }
 
 /* ========= Block mgmt ========= */
