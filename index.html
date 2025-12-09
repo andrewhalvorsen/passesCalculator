@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pass Pricing — Collapsible Blocks, Hours, Adjusted Columns & Master Pass Control</title>
+<title>Pass Pricing — Blocks, Hours, Adjusted Columns</title>
 <style>
   :root{--yellow:#fff36a;--gray:#d9d9d9;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
   *{box-sizing:border-box}
@@ -19,7 +19,6 @@
   .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
   .header h1{margin:0;font-size:28px;font-weight:800}
   .card{border-top:1px solid var(--border)}
-  .card-head{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600}
   .pill.button{cursor:pointer;user-select:none;display:inline-block}
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:0 16px 16px;background:#fff}
@@ -28,7 +27,7 @@
   .field input{width:100%;font-size:18px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;outline:none}
   .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
   .hint{font-size:11px;color:#6b7280;margin-top:6px}
-  .row-controls{display:flex;gap:8px;align-items:center}
+  .muted{color:#6b7280}
   .grid{width:100%;border-collapse:collapse;margin:8px 0 16px}
   .grid th,.grid td{border:1px solid var(--border);padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums}
   .grid th:first-child,.grid td:first-child{text-align:center}
@@ -44,10 +43,10 @@
   .block .title{background:#f3f4f6;padding:10px 12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .title-left{display:flex;align-items:center;gap:12px}
   .title-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .muted{color:#6b7280}
   .inactive{opacity:.55; filter:grayscale(0.4)}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .collapsed .block-body{display:none}
+  .row-controls{display:flex;gap:8px;align-items:center}
   .adj-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between}
   .adj-inline .left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 </style>
@@ -70,7 +69,7 @@
     <div class="inputs">
       <div class="field">
         <label for="masterMonths">Months (payments for ALL blocks)</label>
-        <input id="masterMonths" type="number" min="1" max="12" step="1" value="" />
+        <input id="masterMonths" type="number" min="1" max="12" step="1" />
         <div class="hint">Auto = max pass count across <b>included</b> blocks; override 1–12.</div>
       </div>
       <div class="field">
@@ -89,14 +88,12 @@
           <button class="btn" id="masterRemovePass">− Pass All</button>
           <button class="btn" id="masterAddPass">+ Pass All</button>
         </div>
-        <div class="hint">Limits: min 1, max 8 passes per block.</div>
+        <div class="hint">Min 1, Max 8 passes per block.</div>
       </div>
     </div>
 
-    <div class="card-head">
-      <span class="pill" id="masterPassInfo">Passes: —</span>
-      <span class="pill" id="masterAcreInfo">Total Acres (included): —</span>
-    </div>
+    <!-- Moved here: Included Acres -->
+    <div class="muted" id="masterAcreInfoMuted" style="padding:0 16px 8px">Included acres: —</div>
 
     <div style="padding:0 16px 0">
       <table class="grid">
@@ -145,7 +142,7 @@
 </div>
 
 <script>
-/*=====================  UTILS  =====================*/
+/* ========= Utils ========= */
 const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 const round2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
 const clamp  = (n,min,max) => Math.min(max, Math.max(min, n));
@@ -157,7 +154,7 @@ function equalPayments(total, n){
   return list;
 }
 
-/*=====================  CORE CALC  =====================*/
+/* ========= Core calc ========= */
 function calcBase(pinCount, acres, dollarsPerPin){
   if (pinCount < 0 || !Number.isFinite(pinCount)) throw new Error('Pin count must be a whole number >= 0');
   if (!(acres > 0)) throw new Error('Acres must be > 0');
@@ -174,7 +171,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
     let rate = (i===1) ? basePerAcre : (prev/2);
     let floored = false;
     if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
-    prev = rate; // halving uses floored
+    prev = rate;
     passes.push({ number:i, perAcre:rate, floored });
   }
   const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
@@ -182,12 +179,12 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
   return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
 }
 
-/*=====================  STATE  =====================*/
+/* ========= State ========= */
 let blocks = []; // {id, pins, acres, include, removedPasses, addedPasses, monthsTouched, monthsVal, collapsed}
 let masterMonthsTouched = false;
 let blockSeq = 1;
 
-/*=====================  BLOCK TEMPLATE  =====================*/
+/* ========= Block template ========= */
 function blockTemplate(b){
   const el = document.createElement('div');
   el.className = 'block';
@@ -197,7 +194,6 @@ function blockTemplate(b){
   el.innerHTML = `
     <div class="title">
       <div class="title-left">
-        <!-- FULL PILL CLICKABLE; NO "Open/Collapse" TEXT -->
         <span class="pill button" id="toggle-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
           Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h
         </span>
@@ -226,17 +222,17 @@ function blockTemplate(b){
         </div>
         <div class="field">
           <label for="months-${b.id}">Months (payments)</label>
-          <input id="months-${b.id}" type="number" min="1" max="12" step="1" value="" />
+          <input id="months-${b.id}" type="number" min="1" max="12" step="1" />
           <div class="hint">Auto = this block's pass count; override 1–12.</div>
         </div>
         <div class="field">
           <label for="floor-${b.id}">Min $/acre (optional override)</label>
-          <input id="floor-${b.id}" type="number" min="0" step="0.01" value="" placeholder="">
+          <input id="floor-${b.id}" type="number" min="0" step="0.01" placeholder="">
           <div class="hint">Leave blank to use master floor.</div>
         </div>
         <div class="field">
           <label for="dpp-${b.id}">$ per pin (optional override)</label>
-          <input id="dpp-${b.id}" type="number" min="0" step="0.01" value="" placeholder="">
+          <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
           <div class="hint">Leave blank to use master $/pin.</div>
         </div>
         <div class="field">
@@ -249,7 +245,7 @@ function blockTemplate(b){
         </div>
       </div>
 
-      <div class="card-head">
+      <div class="card-head" style="padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap">
         <span class="pill" id="base-${b.id}">Base: $— / acre</span>
         <span class="pill" id="passcount-${b.id}">Passes: —</span>
         <span class="pill" id="total-${b.id}">Whole-field total: $—</span>
@@ -286,7 +282,7 @@ function blockTemplate(b){
   return el;
 }
 
-/*=====================  RENDER  =====================*/
+/* ========= Render ========= */
 function renderAll(){
   // master inputs
   let masterFloor = Number(document.getElementById('masterFloor').value);
@@ -305,7 +301,7 @@ function renderAll(){
   const adjFactor = 1 + (masterAdjPct/100);
 
   // Collect master rows from INCLUDED blocks only
-  const masterRows = []; // index -> { total, acres }
+  const masterRows = []; // idx -> { total, acres }
   let totalActiveAcres = 0;
   let activeBlocks = 0;
 
@@ -340,7 +336,7 @@ function renderAll(){
       document.getElementById(`effectiveDpp-${b.id}`).textContent = `$/pin: ${fmtUSD(dppVal)}`;
       dppInput.placeholder = `${masterDpp}`;
 
-      // base + effective pass count
+      // effective passes
       const base = calcBase(pins, acres, dppVal);
       const effPasses = clamp((base.autoCount + (b.addedPasses||0) - (b.removedPasses||0)), 1, 8);
 
@@ -352,15 +348,15 @@ function renderAll(){
       if (monthsInput.value !== String(monthsVal)) monthsInput.value = monthsVal;
       b.monthsVal = monthsVal;
 
-      // full calc
+      // calc
       const q = calcWithCount(pins, acres, effPasses, floorVal, dppVal);
 
-      // pills
+      // header pills
       document.getElementById(`base-${b.id}`).textContent = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
       document.getElementById(`passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
       document.getElementById(`total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
-      // rows + hours + master accumulation
+      // rows + hours + accumulate master
       const tbody = document.getElementById(`rows-${b.id}`); tbody.innerHTML='';
       let hoursSum = 0;
       q.passes.forEach(p=>{
@@ -370,11 +366,13 @@ function renderAll(){
 
         const tr = document.createElement('tr');
         if (p.number===1) tr.classList.add('row-hi');
-        const td1 = document.createElement('td'); td1.style.textAlign='center'; td1.textContent=`Pass ${p.number}` + (p.floored?' *':'');
-        const td2 = document.createElement('td'); td2.textContent=fmtUSD(round2(p.perAcre));
-        const td3 = document.createElement('td'); td3.textContent=`${hours.toFixed(2)} h`;
-        const td4 = document.createElement('td'); td4.textContent=fmtUSD(passTotal);
-        tr.append(td1,td2,td3,td4); tbody.appendChild(tr);
+        tr.innerHTML = `
+          <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
+          <td>${fmtUSD(round2(p.perAcre))}</td>
+          <td>${hours.toFixed(2)} h</td>
+          <td>${fmtUSD(passTotal)}</td>
+        `;
+        tbody.appendChild(tr);
 
         if (b.include){
           const idx = p.number - 1;
@@ -384,14 +382,12 @@ function renderAll(){
         }
       });
 
-      // Update pill hours (no open/collapse text)
       document.getElementById(`pillHours-${b.id}`).textContent = hoursSum.toFixed(2);
-
       document.getElementById(`passesCell-${b.id}`).textContent = q.passCount;
       document.getElementById(`hoursCell-${b.id}`).textContent  = `${hoursSum.toFixed(2)} h`;
       document.getElementById(`grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
 
-      // payments (per-block)
+      // per-block payments
       const payWrap = document.getElementById(`payments-${b.id}`); payWrap.innerHTML='';
       document.getElementById(`paycount-${b.id}`).textContent = monthsVal;
       equalPayments(q.fieldTotal, monthsVal).forEach((amt,i)=>{
@@ -407,18 +403,18 @@ function renderAll(){
     }
   });
 
-  // MASTER render
+  // Master table build
   const maxPass = masterRows.length;
   document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-  // months
+  // master months (auto or override)
   const masterMonthsInput = document.getElementById('masterMonths');
   let mVal = Number(masterMonthsInput.value);
   if (!masterMonthsTouched || !Number.isFinite(mVal)){ mVal = maxPass || 1; masterMonthsInput.value = mVal; }
   mVal = clamp(Math.trunc(mVal), 1, 12);
   if (masterMonthsInput.value !== String(mVal)) masterMonthsInput.value = mVal;
 
-  // table rows (with adjusted columns)
+  // rows
   const mBody = document.getElementById('masterPassRows'); mBody.innerHTML='';
   let baseTotal = 0, masterHours = 0, adjPassSum = 0;
 
@@ -430,37 +426,37 @@ function renderAll(){
     const weightedPerAcre= row.acres > 0 ? round2(baseRowTotal / row.acres) : 0;
     const hoursPass      = round2(baseRowTotal / 180);
 
-    const adjPerAcre     = round2(weightedPerAcre * (1 + (Number(document.getElementById('masterAdjPct').value||0)/100)));
-    const adjRowTotal    = round2(baseRowTotal * (1 + (Number(document.getElementById('masterAdjPct').value||0)/100)));
+    const adjPerAcre     = round2(weightedPerAcre * adjFactor);
+    const adjRowTotal    = round2(baseRowTotal * adjFactor);
 
     baseTotal  += baseRowTotal;
     masterHours+= hoursPass;
     adjPassSum += adjRowTotal;
 
     const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="text-align:center">Pass ${i+1}</td>
+      <td>${fmtUSD(weightedPerAcre)}</td>
+      <td>${fmtUSD(adjPerAcre)}</td>
+      <td>${hoursPass.toFixed(2)} h</td>
+      <td>${fmtUSD(baseRowTotal)}</td>
+      <td>${fmtUSD(adjRowTotal)}</td>
+    `;
     if (i===0) tr.classList.add('row-hi');
-    const td1 = document.createElement('td'); td1.style.textAlign='center'; td1.textContent = `Pass ${i+1}`;
-    const td2 = document.createElement('td'); td2.textContent = fmtUSD(weightedPerAcre);
-    const td2b= document.createElement('td'); td2b.textContent= fmtUSD(adjPerAcre);
-    const td3 = document.createElement('td'); td3.textContent = `${hoursPass.toFixed(2)} h`;
-    const td4 = document.createElement('td'); td4.textContent = fmtUSD(baseRowTotal);
-    const td5 = document.createElement('td'); td5.textContent = fmtUSD(adjRowTotal);
-    tr.append(td1,td2,td2b,td3,td4,td5); mBody.appendChild(tr);
+    mBody.appendChild(tr);
   }
 
   // footer + totals
-  document.getElementById('masterPassInfo').textContent   = `Passes: ${maxPass || '—'}`;
-  document.getElementById('masterAcreInfo').textContent   = `Total Acres (included): ${round2(totalActiveAcres)}`;
+  document.getElementById('masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)}`;
   document.getElementById('masterPassesCell').textContent = maxPass || '—';
   document.getElementById('masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
   document.getElementById('masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
 
-  const adjFactor = 1 + (Number(document.getElementById('masterAdjPct').value||0)/100);
   const adjTotal = round2(baseTotal * adjFactor);
   document.getElementById('masterAdjTotal').textContent = `Adjusted: ${fmtUSD(adjTotal)}`;
   document.getElementById('masterAdjPassSum').textContent = fmtUSD(round2(adjPassSum));
 
-  // payments use adjusted total
+  // master payments (use adjusted total)
   document.getElementById('masterPaymentCount').textContent = mVal;
   const mp = document.getElementById('masterPayments'); mp.innerHTML='';
   equalPayments(adjTotal, mVal).forEach((amt,i)=>{
@@ -470,7 +466,7 @@ function renderAll(){
   });
 }
 
-/*=====================  BLOCK MGMT  =====================*/
+/* ========= Block mgmt ========= */
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
   const b = {
@@ -486,7 +482,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const el = blockTemplate(b);
   document.getElementById('blocks').appendChild(el);
 
-  // events
+  // inputs
   const evs = ['input','change'];
   evs.forEach(e=>{
     document.getElementById(`pins-${id}`).addEventListener(e, renderAll);
@@ -497,6 +493,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   document.getElementById(`months-${id}`).addEventListener('input', ()=>{ const bb=blocks.find(x=>x.id===id); bb.monthsTouched = true; renderAll(); });
   document.getElementById(`months-${id}`).addEventListener('change', ()=>{ const bb=blocks.find(x=>x.id===id); bb.monthsTouched = true; renderAll(); });
 
+  // pass controls
   document.getElementById(`removePass-${id}`).addEventListener('click', ()=>{
     const bb = blocks.find(x=>x.id===id);
     const pins = Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
@@ -526,7 +523,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 
   document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
-  // FULL pill clickable: click + keyboard (Enter/Space)
+  // full pill toggle (click + keyboard)
   const pill = document.getElementById(`toggle-${id}`);
   const toggle = ()=>{
     const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
@@ -538,14 +535,14 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
   });
 
-  // initial values
+  // seed values
   document.getElementById(`pins-${id}`).value  = pins;
   document.getElementById(`acres-${id}`).value = acres;
 
   renderAll();
 }
 
-/*=====================  GLOBAL CONTROLS  =====================*/
+/* ========= Global controls ========= */
 document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
 document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
 document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched = true; renderAll(); });
@@ -565,8 +562,6 @@ document.getElementById('adjPlus').addEventListener('click', ()=>{
   i.value = clamp((Number(i.value)||0)+1, -100, 100);
   renderAll();
 });
-
-// Master pass controls
 document.getElementById('masterAddPass').addEventListener('click', ()=>{
   blocks.forEach(b=>{
     const pins = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
@@ -597,7 +592,7 @@ document.getElementById('masterRemovePass').addEventListener('click', ()=>{
   renderAll();
 });
 
-/*=====================  BOOT  =====================*/
+/* ========= Boot ========= */
 addNewBlock({ pins:400, acres:54, collapsed:false });
 renderAll();
 </script>
