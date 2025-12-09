@@ -22,7 +22,6 @@
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
   .pill.inline{padding:6px 10px}
 
-  /* Master inputs with comfortable top padding */
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
           gap:16px;padding:16px;background:#fff}
   .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
@@ -45,7 +44,7 @@
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* Header: WHITE background area, pill is outline-only (no fill) */
+  /* Header: white background; pill is outline-only (no fill) */
   .title{background:#fff;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .toggle-zone{
     flex:1;display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -59,12 +58,10 @@
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .switch input{transform:scale(1.1)}
 
-  /* Adjusted Total column: pill ABOVE controls */
   .adj-inline{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
   .adj-controls{display:flex;align-items:center;gap:8px}
   .adj-controls input{max-width:110px}
 
-  /* Payment footer spacing */
   .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
 </style>
 </head>
@@ -154,54 +151,46 @@
 
 <script>
 (function(){
-  /* ---------- Utils ---------- */
-  function fmtUSD(n){ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n||0); }
-  function round2(v){ return Math.round((Number(v||0) + Number.EPSILON)*100)/100; }
-  function clamp(n,min,max){ return Math.min(max, Math.max(min, n)); }
-  function equalPayments(total,n){
-    n = Math.max(1, Math.trunc(n||1));
-    var each = round2(total/n), list=[];
-    for(let i=0;i<n-1;i++) list.push(each);
-    list.push(round2(total - list.reduce((a,b)=>a+b,0)));
-    return list;
-  }
+  /* ===== Utils ===== */
+  const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n||0);
+  const round2 = v => Math.round((Number(v||0) + Number.EPSILON)*100)/100;
+  const clamp  = (n,min,max) => Math.min(max, Math.max(min, n));
+  function equalPayments(total,n){ n=Math.max(1,Math.trunc(n||1));
+    const each=round2(total/n), list=Array.from({length:n-1},()=>each);
+    list.push(round2(total - list.reduce((a,b)=>a+b,0))); return list; }
 
-  /* ---------- Core calc ---------- */
+  /* ===== Core calc ===== */
   function calcBase(pinCount, acres, dollarsPerPin){
     if (!Number.isFinite(pinCount) || Math.trunc(pinCount)!==pinCount || pinCount<0) throw new Error('Pin count must be a whole number >= 0');
     if (!(acres>0)) throw new Error('Acres must be > 0');
     if (!(dollarsPerPin>=0)) throw new Error('Price per pin must be >= 0');
-    const basePerAcre = (pinCount*dollarsPerPin)/acres;
-    const autoCount = basePerAcre < 50 ? 4 : (basePerAcre < 100 ? 5 : 6); // >=100 => 6
+    const basePerAcre=(pinCount*dollarsPerPin)/acres;
+    const autoCount = basePerAcre < 50 ? 4 : (basePerAcre < 100 ? 5 : 6); // 100 exactly -> 6
     return { basePerAcre, autoCount };
   }
   function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
-    const base = calcBase(pinCount, acres, dollarsPerPin);
-    const passes = [];
-    let prev = base.basePerAcre;
-    for (let i=1;i<=passCount;i++){
-      let rate = (i===1) ? base.basePerAcre : (prev/2);
-      let floored=false;
-      if (rate < floorPerAcre){ rate=floorPerAcre; floored=true; }
-      prev = rate;
-      passes.push({ number:i, perAcre:rate, floored });
+    const { basePerAcre } = calcBase(pinCount, acres, dollarsPerPin);
+    const passes=[]; let prev=basePerAcre;
+    for(let i=1;i<=passCount;i++){
+      let rate = (i===1)?basePerAcre:(prev/2); let floored=false;
+      if(rate<floorPerAcre){ rate=floorPerAcre; floored=true; }
+      prev=rate; passes.push({number:i, perAcre:rate, floored});
     }
-    const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
-    const fieldTotal = round2(perAcreTotal * acres);
-    return { basePerAcre: base.basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
+    const perAcreTotal=passes.reduce((s,p)=>s+p.perAcre,0);
+    const fieldTotal=round2(perAcreTotal*acres);
+    return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
   }
 
-  /* ---------- State ---------- */
-  let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed}
-  let blockSeq = 1;
-  let masterMonthsTouched = false;
+  /* ===== State ===== */
+  let blocks=[]; // {id,pins,acres,include,removedPasses,addedPasses,collapsed}
+  let blockSeq=1;
+  let masterMonthsTouched=false;
 
-  /* ---------- Templating ---------- */
+  /* ===== Templates ===== */
   function blockTemplate(b){
-    const el = document.createElement('div');
-    el.className = 'block' + (b.collapsed?' collapsed':'');
-    el.dataset.blockId = b.id;
-    el.innerHTML = `
+    const el=document.createElement('div');
+    el.className='block'+(b.collapsed?' collapsed':''); el.dataset.blockId=b.id;
+    el.innerHTML=`
       <div class="title">
         <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
           <div class="tz-left">
@@ -217,10 +206,8 @@
           </div>
         </div>
       </div>
-
       <div class="block-body">
         <div id="err-${b.id}" class="notice"></div>
-
         <div class="inputs">
           <div class="field">
             <label for="pins-${b.id}">Pin Count (whole number)</label>
@@ -237,7 +224,7 @@
           </div>
           <div class="field">
             <label for="dpp-${b.id}">$ per pin (optional override)</label>
-            <input id="dpp-${b.id}` + `" type="number" min="0" step="0.01" placeholder="">
+            <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
             <div class="hint">Leave blank to use master $/pin.</div>
           </div>
           <div class="field">
@@ -249,13 +236,11 @@
             <div class="hint">Min 1, max 8.</div>
           </div>
         </div>
-
         <div style="padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap">
           <span class="pill inline" id="base-${b.id}">Base: $— / acre</span>
           <span class="pill inline" id="passcount-${b.id}">Passes: —</span>
           <span class="pill inline" id="total-${b.id}">Whole-field total: $—</span>
         </div>
-
         <div style="padding:0 16px 0">
           <table class="grid">
             <thead>
@@ -277,169 +262,152 @@
             </tfoot>
           </table>
         </div>
-      </div>
-    `;
+      </div>`;
     return el;
   }
 
-  /* ---------- Rendering ---------- */
+  /* ===== Render ===== */
   function renderAll(){
-    const masterFloorEl = document.getElementById('masterFloor');
-    const masterDppEl   = document.getElementById('masterDpp');
-    const masterAdjEl   = document.getElementById('masterAdjPct');
+    const masterFloorEl=document.getElementById('masterFloor');
+    const masterDppEl=document.getElementById('masterDpp');
+    const masterAdjEl=document.getElementById('masterAdjPct');
 
-    let masterFloor = round2(Number(masterFloorEl && masterFloorEl.value));
-    if (!Number.isFinite(masterFloor) || masterFloor<0) masterFloor=20;
+    let masterFloor=round2(Number(masterFloorEl&&masterFloorEl.value)); if(!Number.isFinite(masterFloor)||masterFloor<0) masterFloor=20;
+    let masterDpp  =round2(Number(masterDppEl&&masterDppEl.value));     if(!Number.isFinite(masterDpp)||masterDpp<0) masterDpp=20;
+    let masterAdjPct=Math.trunc(Number(masterAdjEl&&masterAdjEl.value)); if(!Number.isFinite(masterAdjPct)) masterAdjPct=0;
+    masterAdjPct=clamp(masterAdjPct,-100,100); if(masterAdjEl&&String(masterAdjPct)!==masterAdjEl.value) masterAdjEl.value=masterAdjPct;
+    const adjFactor=1+(masterAdjPct/100);
 
-    let masterDpp = round2(Number(masterDppEl && masterDppEl.value));
-    if (!Number.isFinite(masterDpp) || masterDpp<0) masterDpp=20;
+    const masterRows=[]; let totalActiveAcres=0, activeBlocks=0;
 
-    let masterAdjPct = Math.trunc(Number(masterAdjEl && masterAdjEl.value));
-    if (!Number.isFinite(masterAdjPct)) masterAdjPct = 0;
-    masterAdjPct = clamp(masterAdjPct,-100,100);
-    if (masterAdjEl && String(masterAdjPct)!==masterAdjEl.value) masterAdjEl.value = masterAdjPct;
-    const adjFactor = 1 + (masterAdjPct/100);
+    for(const b of blocks){
+      const includeChk=document.getElementById(`include-${b.id}`);
+      const blockEl=document.querySelector(`.block[data-block-id="${b.id}"]`);
+      b.include=!!(includeChk&&includeChk.checked);
+      if(blockEl) blockEl.classList.toggle('inactive',!b.include);
 
-    const masterRows = []; // idx -> {total, acres}
-    let totalActiveAcres = 0;
-    let activeBlocks = 0;
-
-    for (const b of blocks){
-      const includeChk = document.getElementById(`include-${b.id}`);
-      const blockEl = document.querySelector(`.block[data-block-id="${b.id}"]`);
-      b.include = !!(includeChk && includeChk.checked);
-      if (blockEl) blockEl.classList.toggle('inactive', !b.include);
-
-      const err = document.getElementById(`err-${b.id}`);
+      const err=document.getElementById(`err-${b.id}`);
       try{
-        if (err) err.style.display='none';
+        if(err) err.style.display='none';
 
-        const pinsEl  = document.getElementById(`pins-${b.id}`);
-        const acresEl = document.getElementById(`acres-${b.id}`);
-        const floorIn = document.getElementById(`floor-${b.id}`);
-        const dppIn   = document.getElementById(`dpp-${b.id}`);
+        const pins = Math.trunc(Number((document.getElementById(`pins-${b.id}`)||{}).value));
+        const acres= Number((document.getElementById(`acres-${b.id}`)||{}).value);
 
-        const pins  = Math.trunc(Number(pinsEl && pinsEl.value));
-        const acres = Number(acresEl && acresEl.value);
+        const floorIn=document.getElementById(`floor-${b.id}`);
+        let floorVal=Number(floorIn&&floorIn.value);
+        const hasFloorOverride=Number.isFinite(floorVal)&& (floorIn&&floorIn.value!=='');
+        if(!hasFloorOverride) floorVal=masterFloor;
+        floorVal=clamp(round2(floorVal),0,1e9);
+        const ef=document.getElementById(`effectiveFloor-${b.id}`); if(ef) ef.textContent=`Floor: ${fmtUSD(floorVal)}/acre`;
+        if(floorIn) floorIn.placeholder=String(masterFloor);
 
-        let floorVal = Number(floorIn && floorIn.value);
-        const hasFloorOverride = Number.isFinite(floorVal) && (floorIn && floorIn.value!=='');
-        if (!hasFloorOverride) floorVal = masterFloor;
-        floorVal = clamp(round2(floorVal),0,1e9);
-        const ef = document.getElementById(`effectiveFloor-${b.id}`); if (ef) ef.textContent = `Floor: ${fmtUSD(floorVal)}/acre`;
-        if (floorIn) floorIn.placeholder = String(masterFloor);
+        const dppIn=document.getElementById(`dpp-${b.id}`);
+        let dppVal=Number(dppIn&&dppIn.value);
+        const hasDppOverride=Number.isFinite(dppVal)&&(dppIn&&dppIn.value!=='');
+        if(!hasDppOverride) dppVal=masterDpp;
+        dppVal=clamp(round2(dppVal),0,1e9);
+        const ed=document.getElementById(`effectiveDpp-${b.id}`); if(ed) ed.textContent=`$/pin: ${fmtUSD(dppVal)}`;
+        if(dppIn) dppIn.placeholder=String(masterDpp);
 
-        let dppVal = Number(dppIn && dppIn.value);
-        const hasDppOverride = Number.isFinite(dppVal) && (dppIn && dppIn.value!=='');
-        if (!hasDppOverride) dppVal = masterDpp;
-        dppVal = clamp(round2(dppVal),0,1e9);
-        const ed = document.getElementById(`effectiveDpp-${b.id}`); if (ed) ed.textContent = `$/pin: ${fmtUSD(dppVal)}`;
-        if (dppIn) dppIn.placeholder = String(masterDpp);
+        const base=calcBase(pins, acres, dppVal);
+        const effPasses=clamp((base.autoCount+(b.addedPasses||0)-(b.removedPasses||0)),1,8);
+        const q=calcWithCount(pins, acres, effPasses, floorVal, dppVal);
 
-        const base = calcBase(pins, acres, dppVal);
-        const effPasses = clamp((base.autoCount + (b.addedPasses||0) - (b.removedPasses||0)), 1, 8);
-        const q = calcWithCount(pins, acres, effPasses, floorVal, dppVal);
-
-        const pillHours = document.getElementById(`pillHours-${b.id}`);
-        if (pillHours){
-          const hoursSumForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/180), 0);
-          pillHours.textContent = hoursSumForPill.toFixed(2);
+        const pillHours=document.getElementById(`pillHours-${b.id}`);
+        if(pillHours){
+          const h=q.passes.reduce((s,p)=>s+round2((p.perAcre*acres)/180),0);
+          pillHours.textContent=h.toFixed(2);
         }
-        const baseP = document.getElementById(`base-${b.id}`); if (baseP) baseP.textContent = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
-        const pcP   = document.getElementById(`passcount-${b.id}`); if (pcP) pcP.textContent = `Passes: ${q.passCount}`;
-        const totP  = document.getElementById(`total-${b.id}`); if (totP) totP.textContent = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
+        const baseP=document.getElementById(`base-${b.id}`); if(baseP) baseP.textContent=`Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
+        const pcP=document.getElementById(`passcount-${b.id}`); if(pcP) pcP.textContent=`Passes: ${q.passCount}`;
+        const totP=document.getElementById(`total-${b.id}`); if(totP) totP.textContent=`Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
-        const tbody = document.getElementById(`rows-${b.id}`); if (tbody) tbody.innerHTML='';
-        let hoursSum = 0;
-        for (const p of q.passes){
-          const passTotal = round2(p.perAcre*acres);
-          const hours = round2(passTotal/180);
-          hoursSum += hours;
-          if (tbody){
-            const tr = document.createElement('tr');
-            if (p.number===1) tr.classList.add('row-hi');
-            tr.innerHTML = `
+        const tbody=document.getElementById(`rows-${b.id}`); if(tbody) tbody.innerHTML='';
+        let hoursSum=0;
+        for(const p of q.passes){
+          const passTotal=round2(p.perAcre*acres);
+          const hours=round2(passTotal/180);
+          hoursSum+=hours;
+          if(tbody){
+            const tr=document.createElement('tr');
+            if(p.number===1) tr.classList.add('row-hi');
+            tr.innerHTML=`
               <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
               <td>${fmtUSD(round2(p.perAcre))}</td>
               <td>${hours.toFixed(2)} h</td>
               <td>${fmtUSD(passTotal)}</td>`;
             tbody.appendChild(tr);
           }
-          if (b.include){
-            const idx = p.number-1;
-            masterRows[idx] = masterRows[idx] || { total:0, acres:0 };
-            masterRows[idx].total += passTotal;
-            masterRows[idx].acres += acres;
+          if(b.include){
+            const idx=p.number-1;
+            masterRows[idx]=masterRows[idx]||{total:0, acres:0};
+            masterRows[idx].total+=passTotal;
+            masterRows[idx].acres+=acres;
           }
         }
-        const pcCell = document.getElementById(`passesCell-${b.id}`); if (pcCell) pcCell.textContent = q.passCount;
-        const hCell  = document.getElementById(`hoursCell-${b.id}`);  if (hCell)  hCell.textContent  = `${hoursSum.toFixed(2)} h`;
-        const gCell  = document.getElementById(`grandCell-${b.id}`);  if (gCell)  gCell.textContent  = fmtUSD(q.fieldTotal);
+        const pcCell=document.getElementById(`passesCell-${b.id}`); if(pcCell) pcCell.textContent=q.passCount;
+        const hCell=document.getElementById(`hoursCell-${b.id}`); if(hCell) hCell.textContent=`${hoursSum.toFixed(2)} h`;
+        const gCell=document.getElementById(`grandCell-${b.id}`); if(gCell) gCell.textContent=fmtUSD(q.fieldTotal);
 
-        if (b.include){ totalActiveAcres += acres; activeBlocks++; }
+        if(b.include){ totalActiveAcres+=acres; activeBlocks++; }
       }catch(e){
-        if (err){ err.style.display='block'; err.textContent = e.message; }
+        if(err){ err.style.display='block'; err.textContent=e.message; }
       }
     }
 
-    document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
+    document.getElementById('blockCountPill').textContent=`Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-    const masterMonthsInput = document.getElementById('masterMonths');
-    let mVal = Number(masterMonthsInput && masterMonthsInput.value);
-    const maxPass = masterRows.length || 1;
-    if (!masterMonthsTouched || !Number.isFinite(mVal)){ mVal = maxPass; if (masterMonthsInput) masterMonthsInput.value = mVal; }
-    mVal = clamp(Math.trunc(mVal),1,12);
-    if (masterMonthsInput && masterMonthsInput.value !== String(mVal)) masterMonthsInput.value = mVal;
+    const masterMonthsInput=document.getElementById('masterMonths');
+    let mVal=Number(masterMonthsInput&&masterMonthsInput.value);
+    const maxPass=masterRows.length||1;
+    if(!masterMonthsTouched||!Number.isFinite(mVal)){ mVal=maxPass; if(masterMonthsInput) masterMonthsInput.value=mVal; }
+    mVal=clamp(Math.trunc(mVal),1,12);
+    if(masterMonthsInput && masterMonthsInput.value!==String(mVal)) masterMonthsInput.value=mVal;
 
-    const mBody = document.getElementById('masterPassRows'); if (mBody) mBody.innerHTML='';
+    const mBody=document.getElementById('masterPassRows'); if(mBody) mBody.innerHTML='';
     let baseTotal=0, masterHours=0;
-    const adjFactor = 1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100);
-    for (let i=0;i<masterRows.length;i++){
-      const row = masterRows[i]; if (!row) continue;
-      const baseRowTotal = round2(row.total);
-      const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
-      const hoursPass = round2(baseRowTotal/180);
-      const adjPerAcre = round2(perAcre*adjFactor);
-      const adjRowTotal= round2(baseRowTotal*adjFactor);
-      baseTotal += baseRowTotal; masterHours += hoursPass;
+    for(let i=0;i<masterRows.length;i++){
+      const row=masterRows[i]; if(!row) continue;
+      const baseRowTotal=round2(row.total);
+      const perAcre=row.acres>0?round2(baseRowTotal/row.acres):0;
+      const hoursPass=round2(baseRowTotal/180);
+      const adjPerAcre=round2(perAcre*adjFactor);
+      const adjRowTotal=round2(baseRowTotal*adjFactor);
+      baseTotal+=baseRowTotal; masterHours+=hoursPass;
 
-      if (mBody){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
+      if(mBody){
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
           <td style="text-align:center">Pass ${i+1}</td>
           <td>${fmtUSD(perAcre)}</td>
           <td>${fmtUSD(adjPerAcre)}</td>
           <td>${hoursPass.toFixed(2)} h</td>
           <td>${fmtUSD(baseRowTotal)}</td>
           <td>${fmtUSD(adjRowTotal)}</td>`;
-        if (i===0) tr.classList.add('row-hi');
+        if(i===0) tr.classList.add('row-hi');
         mBody.appendChild(tr);
       }
     }
 
-    document.getElementById('masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)}`;
-    document.getElementById('masterPassesCell').textContent = masterRows.length || '—';
-    document.getElementById('masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
-    document.getElementById('masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
+    document.getElementById('masterAcreInfoMuted').textContent=`Included acres: ${round2(totalActiveAcres)}`;
+    document.getElementById('masterPassesCell').textContent=masterRows.length||'—';
+    document.getElementById('masterHoursCell').textContent=`${masterHours.toFixed(2)} h`;
+    document.getElementById('masterBaseTotal').textContent=fmtUSD(round2(baseTotal));
 
-    const adjTotal = round2(baseTotal*adjFactor);
-    document.getElementById('masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
-    const payments = equalPayments(adjTotal, mVal);
-    document.getElementById('masterPaymentPill').textContent = `${mVal} payments of ${fmtUSD(payments[0]||0)}`;
+    const adjTotal=round2(baseTotal*adjFactor);
+    document.getElementById('masterAdjTotalPill').textContent=`Adjusted Total: ${fmtUSD(adjTotal)}`;
+    const payments=equalPayments(adjTotal, mVal);
+    document.getElementById('masterPaymentPill').textContent=`${mVal} payments of ${fmtUSD(payments[0]||0)}`;
   }
 
-  /* ---------- Block mgmt ---------- */
-  function addNewBlock(opts){
-    const pins = (opts&&Number.isFinite(opts.pins)) ? Math.trunc(opts.pins) : 0;
-    const acres = (opts&&Number.isFinite(opts.acres) && opts.acres>0) ? opts.acres : 1;
-    const collapsed = !!(opts&&opts.collapsed);
-
-    const id = blockSeq++;
-    const b = { id, pins, acres, include:true, removedPasses:0, addedPasses:0, collapsed };
+  /* ===== Blocks ===== */
+  function addNewBlock({pins=0, acres=1, collapsed=true}={}){
+    const id=blockSeq++;
+    const b={id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed};
     blocks.push(b);
 
-    const el = blockTemplate(b);
-    const cont = document.getElementById('blocks'); cont.appendChild(el);
+    const el=blockTemplate(b);
+    document.getElementById('blocks').appendChild(el);
 
     ['input','change'].forEach(e=>{
       document.getElementById(`pins-${id}`).addEventListener(e, renderAll);
@@ -449,102 +417,95 @@
     });
 
     document.getElementById(`removePass-${id}`).addEventListener('click', ()=>{
-      const bb = blocks.find(x=>x.id===id);
-      const pins = Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
-      const acres= Number(document.getElementById(`acres-${id}`).value||0);
-      const dpp  = Number(document.getElementById(`dpp-${id}`).value);
-      const mdpp = Number(document.getElementById('masterDpp').value||20);
-      const effDpp = (Number.isFinite(dpp) && document.getElementById(`dpp-${id}`).value!=='') ? dpp : mdpp;
-      const base = calcBase(pins, Math.max(0.01, acres), effDpp);
-      const eff = clamp(base.autoCount + (bb.addedPasses||0) - (bb.removedPasses||0),1,8);
-      if (eff>1){
-        if ((bb.addedPasses||0)>0) bb.addedPasses -= 1;
-        else bb.removedPasses = (bb.removedPasses||0)+1;
+      const bb=blocks.find(x=>x.id===id);
+      const pins=Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
+      const acres=Number(document.getElementById(`acres-${id}`).value||0);
+      const dpp=Number(document.getElementById(`dpp-${id}`).value);
+      const mdpp=Number(document.getElementById('masterDpp').value||20);
+      const effDpp=(Number.isFinite(dpp)&&document.getElementById(`dpp-${id}`).value!=='')?dpp:mdpp;
+      const base=calcBase(pins, Math.max(0.01, acres), effDpp);
+      const eff=clamp(base.autoCount+(bb.addedPasses||0)-(bb.removedPasses||0),1,8);
+      if(eff>1){
+        if((bb.addedPasses||0)>0) bb.addedPasses-=1; else bb.removedPasses=(bb.removedPasses||0)+1;
         renderAll();
       }
     });
     document.getElementById(`addPass-${id}`).addEventListener('click', ()=>{
-      const bb = blocks.find(x=>x.id===id);
-      const pins = Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
-      const acres= Number(document.getElementById(`acres-${id}`).value||0);
-      const dpp  = Number(document.getElementById(`dpp-${id}`).value);
-      const mdpp = Number(document.getElementById('masterDpp').value||20);
-      const effDpp = (Number.isFinite(dpp) && document.getElementById(`dpp-${id}`).value!=='') ? dpp : mdpp;
-      const base = calcBase(pins, Math.max(0.01, acres), effDpp);
-      const eff = clamp(base.autoCount + (bb.addedPasses||0) - (bb.removedPasses||0),1,8);
-      if (eff<8){ bb.addedPasses = (bb.addedPasses||0)+1; renderAll(); }
+      const bb=blocks.find(x=>x.id===id);
+      const pins=Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
+      const acres=Number(document.getElementById(`acres-${id}`).value||0);
+      const dpp=Number(document.getElementById(`dpp-${id}`).value);
+      const mdpp=Number(document.getElementById('masterDpp').value||20);
+      const effDpp=(Number.isFinite(dpp)&&document.getElementById(`dpp-${id}`).value!=='')?dpp:mdpp;
+      const base=calcBase(pins, Math.max(0.01, acres), effDpp);
+      const eff=clamp(base.autoCount+(bb.addedPasses||0)-(bb.removedPasses||0),1,8);
+      if(eff<8){ bb.addedPasses=(bb.addedPasses||0)+1; renderAll(); }
     });
 
-    const includeWrap = document.getElementById(`include-wrap-${id}`);
-    includeWrap.addEventListener('click', e=>e.stopPropagation());
+    // Include checkbox shouldn't toggle collapse
+    document.getElementById(`include-wrap-${id}`).addEventListener('click', e=>e.stopPropagation());
     document.getElementById(`include-${id}`).addEventListener('click', e=>{ e.stopPropagation(); renderAll(); });
     document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
-    const tz = document.getElementById(`toggle-zone-${id}`);
-    const toggle = ()=>{
-      const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
-      const collapsed = blockEl.classList.toggle('collapsed');
-      tz.setAttribute('aria-expanded', String(!collapsed));
-    };
+    // Collapsible header
+    const tz=document.getElementById(`toggle-zone-${id}`);
+    const toggle=()=>{ const blockEl=document.querySelector(`.block[data-block-id="${id}"]`);
+      const c=blockEl.classList.toggle('collapsed'); tz.setAttribute('aria-expanded', String(!c)); };
     tz.addEventListener('click', toggle);
-    tz.addEventListener('keydown', e=>{
-      if (e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }
-    });
+    tz.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } });
 
     renderAll();
   }
 
-  /* ---------- DOM Ready ---------- */
-  document.addEventListener('DOMContentLoaded', function(){
-    document.getElementById('addBlockBtn').addEventListener('click', function(){
-      addNewBlock({ pins:0, acres:1, collapsed:true });
-    });
-    document.getElementById('masterMonths').addEventListener('input', function(){ masterMonthsTouched=true; renderAll(); });
-    document.getElementById('masterMonths').addEventListener('change', function(){ masterMonthsTouched=true; renderAll(); });
+  /* ===== Init (robust) ===== */
+  function init(){
+    // Wire globals
+    document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
+    document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched=true; renderAll(); });
+    document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched=true; renderAll(); });
     ['masterFloor','masterDpp','masterAdjPct'].forEach(id=>{
-      const el = document.getElementById(id);
-      el.addEventListener('input', renderAll);
-      el.addEventListener('change', renderAll);
+      const el=document.getElementById(id); el.addEventListener('input', renderAll); el.addEventListener('change', renderAll);
     });
-    document.getElementById('adjMinus').addEventListener('click', function(){
-      const i = document.getElementById('masterAdjPct'); i.value = clamp((Number(i.value)||0)-1,-100,100); renderAll();
+    document.getElementById('adjMinus').addEventListener('click', ()=>{
+      const i=document.getElementById('masterAdjPct'); i.value=clamp((Number(i.value)||0)-1,-100,100); renderAll();
     });
-    document.getElementById('adjPlus').addEventListener('click', function(){
-      const i = document.getElementById('masterAdjPct'); i.value = clamp((Number(i.value)||0)+1,-100,100); renderAll();
+    document.getElementById('adjPlus').addEventListener('click', ()=>{
+      const i=document.getElementById('masterAdjPct'); i.value=clamp((Number(i.value)||0)+1,-100,100); renderAll();
     });
-    document.getElementById('masterAddPass').addEventListener('click', function(){
+    document.getElementById('masterAddPass').addEventListener('click', ()=>{
       blocks.forEach(b=>{
-        const pins = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
-        const acres= Number(document.getElementById(`acres-${b.id}`).value||0);
-        const dpp  = Number(document.getElementById(`dpp-${b.id}`).value);
-        const mdpp = Number(document.getElementById('masterDpp').value||20);
-        const effDpp = (Number.isFinite(dpp) && document.getElementById(`dpp-${b.id}`).value!=='') ? dpp : mdpp;
-        const base = calcBase(pins, Math.max(0.01, acres), effDpp);
-        const eff = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0),1,8);
-        if (eff<8) b.addedPasses = (b.addedPasses||0)+1;
-      });
-      renderAll();
+        const pins=Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
+        const acres=Number(document.getElementById(`acres-${b.id}`).value||0);
+        const dpp=Number(document.getElementById(`dpp-${b.id}`).value);
+        const mdpp=Number(document.getElementById('masterDpp').value||20);
+        const effDpp=(Number.isFinite(dpp)&&document.getElementById(`dpp-${b.id}`).value!=='')?dpp:mdpp;
+        const base=calcBase(pins, Math.max(0.01, acres), effDpp);
+        const eff=clamp(base.autoCount+(b.addedPasses||0)-(b.removedPasses||0),1,8);
+        if(eff<8) b.addedPasses=(b.addedPasses||0)+1;
+      }); renderAll();
     });
-    document.getElementById('masterRemovePass').addEventListener('click', function(){
+    document.getElementById('masterRemovePass').addEventListener('click', ()=>{
       blocks.forEach(b=>{
-        const pins = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
-        const acres= Number(document.getElementById(`acres-${b.id}`).value||0);
-        const dpp  = Number(document.getElementById(`dpp-${b.id}`).value);
-        const mdpp = Number(document.getElementById('masterDpp').value||20);
-        const effDpp = (Number.isFinite(dpp) && document.getElementById(`dpp-${b.id}`).value!=='') ? dpp : mdpp;
-        const base = calcBase(pins, Math.max(0.01, acres), effDpp);
-        const eff = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0),1,8);
-        if (eff>1){
-          if ((b.addedPasses||0)>0) b.addedPasses -= 1;
-          else b.removedPasses = (b.removedPasses||0)+1;
-        }
-      });
-      renderAll();
+        const pins=Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
+        const acres=Number(document.getElementById(`acres-${b.id}`).value||0);
+        const dpp=Number(document.getElementById(`dpp-${b.id}`).value);
+        const mdpp=Number(document.getElementById('masterDpp').value||20);
+        const effDpp=(Number.isFinite(dpp)&&document.getElementById(`dpp-${b.id}`).value!=='')?dpp:mdpp;
+        const base=calcBase(pins, Math.max(0.01, acres), effDpp);
+        const eff=clamp(base.autoCount+(b.addedPasses||0)-(b.removedPasses||0),1,8);
+        if(eff>1){ if((b.addedPasses||0)>0) b.addedPasses-=1; else b.removedPasses=(b.removedPasses||0)+1; }
+      }); renderAll();
     });
 
-    // Seed one visible block, then render
-    addNewBlock({ pins:400, acres:54, collapsed:false });
-  });
+    // Seed one visible block
+    addNewBlock({pins:400, acres:54, collapsed:false});
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init(); // if script is at end and DOM already parsed
+  }
 })();
 </script>
 </body>
