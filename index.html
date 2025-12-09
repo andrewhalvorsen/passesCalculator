@@ -50,13 +50,13 @@
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* Single pill header (light grey on white). No nested pills. */
+  /* Single pill header (solid light grey on white, NO border) */
   .title{background:#fff;padding:10px 0}
   .toggle-zone{
     margin:0 12px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
-    background:#f3f4f6; /* light grey single pill */
-    border:1px solid #d1d5db; border-radius:9999px; padding:10px 14px;
+    background:#f3f4f6; /* solid light grey */
+    border:none; border-radius:9999px; padding:10px 14px;
     cursor:pointer; outline:none; color:#111827;
   }
   .toggle-zone:focus{box-shadow:0 0 0 3px rgba(100,116,139,.25)}
@@ -190,7 +190,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
     let rate = (i===1) ? basePerAcre : (prev/2);
     let floored = false;
     if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
-    prev = rate; // halving uses floored
+    prev = rate;
     passes.push({ number:i, perAcre:rate, floored });
   }
   const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
@@ -288,17 +288,17 @@ function blockHTML(b){
 /* ========= Rendering ========= */
 function renderAll(){
   try{
-    const masterFloorEl = document.getElementById('masterFloor');
-    const masterDppEl   = document.getElementById('masterDpp');
-    const adjEl         = document.getElementById('masterAdjPct');
+    const floorEl = document.getElementById('masterFloor');
+    const dppEl   = document.getElementById('masterDpp');
+    const adjEl   = document.getElementById('masterAdjPct');
 
-    let floor = round2(Number(masterFloorEl.value)); if (!Number.isFinite(floor) || floor<0) floor = 20;
-    let dpp   = round2(Number(masterDppEl.value));   if (!Number.isFinite(dpp)   || dpp<0)   dpp   = 20;
-    let adjPct= Math.trunc(Number(adjEl.value));     if (!Number.isFinite(adjPct)) adjPct = 0;
+    let floor = round2(Number(floorEl.value)); if (!Number.isFinite(floor) || floor<0) floor = 20;
+    let dpp   = round2(Number(dppEl.value));   if (!Number.isFinite(dpp)   || dpp<0)   dpp   = 20;
+    let adjPct= Math.trunc(Number(adjEl.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
     adjPct = clamp(adjPct, -100, 100); if (String(adjPct)!==adjEl.value) adjEl.value = adjPct;
     const adjFactor = 1 + (adjPct/100);
 
-    const masterRows = []; // per-pass aggregates
+    const masterRows = [];
     let totalActiveAcres = 0, activeBlocks = 0;
 
     for (const b of blocks){
@@ -332,14 +332,12 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp);
 
-        // header chips
         const hoursForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/180), 0);
         document.getElementById(`pillHours-${b.id}`).textContent = hoursForPill.toFixed(2);
         document.getElementById(`base-${b.id}`).textContent      = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
         document.getElementById(`passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
         document.getElementById(`total-${b.id}`).textContent     = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
-        // rows
         const tbody = document.getElementById(`rows-${b.id}`); tbody.innerHTML = '';
         let blockHours = 0;
         for (const p of q.passes){
@@ -374,7 +372,6 @@ function renderAll(){
       }
     }
 
-    // master summary
     document.getElementById('blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
     document.getElementById('masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)}`;
 
@@ -385,8 +382,8 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjPerAcre = round2(perAcre * adjFactor);
-      const adjRowTotal= round2(baseRowTotal * adjFactor);
+      const adjPerAcre = round2(perAcre * (1 + (Number(document.getElementById('masterAdjPct').value)||0)/100));
+      const adjRowTotal= round2(baseRowTotal * (1 + (Number(document.getElementById('masterAdjPct').value)||0)/100));
       baseTotal += baseRowTotal; masterHours += hoursPass;
 
       const tr = document.createElement('tr');
@@ -404,14 +401,13 @@ function renderAll(){
     document.getElementById('masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
     document.getElementById('masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
 
-    // months (auto unless user set)
     const monthsEl = document.getElementById('masterMonths');
     let months = Number(monthsEl.value);
     const maxPass = masterRows.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(months)){ months = maxPass; monthsEl.value = months; }
     months = clamp(Math.trunc(months), 1, 12); if (String(months)!==monthsEl.value) monthsEl.value = months;
 
-    const adjTotal = round2(baseTotal * adjFactor);
+    const adjTotal = round2(baseTotal * (1 + (Number(document.getElementById('masterAdjPct').value)||0)/100));
     document.getElementById('masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
     const payments = equalPayments(adjTotal, months);
     document.getElementById('masterPaymentPill').textContent = `${months} payments of ${fmtUSD(payments[0]||0)}`;
@@ -431,7 +427,7 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 
 /* ========= Event delegation ========= */
 function wireEvents(){
-  // Global buttons/inputs
+  // Global
   document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
   document.getElementById('masterFloor').addEventListener('input', renderAll);
   document.getElementById('masterDpp').addEventListener('input', renderAll);
@@ -443,55 +439,23 @@ function wireEvents(){
     const i=document.getElementById('masterAdjPct'); i.value = clamp((Number(i.value)||0)+1, -100, 100); renderAll();
   });
   document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
-  document.getElementById('masterAddPass').addEventListener('click', ()=>{
-    blocks.forEach(b=>{
-      // compute effective current count, cap at 8
-      const pins  = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
-      const acres = Number(document.getElementById(`acres-${b.id}`).value||0);
-      const dppIn = document.getElementById(`dpp-${b.id}`).value;
-      const mdpp  = Number(document.getElementById('masterDpp').value||20);
-      const effDpp= (dppIn!=='' && Number.isFinite(Number(dppIn))) ? Number(dppIn) : mdpp;
-      const base  = calcBase(pins, Math.max(0.01, acres), effDpp);
-      const eff   = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
-      if (eff < 8) b.addedPasses = (b.addedPasses||0)+1;
-    });
-    renderAll();
-  });
-  document.getElementById('masterRemovePass').addEventListener('click', ()=>{
-    blocks.forEach(b=>{
-      const pins  = Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
-      const acres = Number(document.getElementById(`acres-${b.id}`).value||0);
-      const dppIn = document.getElementById(`dpp-${b.id}`).value;
-      const mdpp  = Number(document.getElementById('masterDpp').value||20);
-      const effDpp= (dppIn!=='' && Number.isFinite(Number(dppIn))) ? Number(dppIn) : mdpp;
-      const base  = calcBase(pins, Math.max(0.01, acres), effDpp);
-      const eff   = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
-      if (eff > 1){
-        if ((b.addedPasses||0) > 0) b.addedPasses -= 1;
-        else b.removedPasses = (b.removedPasses||0) + 1;
-      }
-    });
-    renderAll();
-  });
 
-  // Event delegation for blocks
+  // Blocks (delegate)
   const blocksEl = document.getElementById('blocks');
 
-  // Clicks (toggle, include, per-block add/remove)
   blocksEl.addEventListener('click', (e)=>{
-    const tz = e.target.closest('.toggle-zone');
-    if (tz){
-      const id = Number(tz.id.replace('toggle-zone-',''));
-      const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
-      const collapsed = blockEl.classList.toggle('collapsed');
-      tz.setAttribute('aria-expanded', String(!collapsed));
+    // 1) If the click is on the include toggle area, DO NOT collapse
+    if (e.target.closest('.switch')) {
+      // let the checkbox toggle naturally; then re-render
+      setTimeout(renderAll, 0);
       return;
     }
+
+    // 2) Per-block add/remove pass buttons
     const btn = e.target.closest('button.btn');
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
       const b = blocks.find(x=>x.id===id);
-      // compute eff and cap
       const pins  = Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
       const acres = Number(document.getElementById(`acres-${id}`).value||0);
       const dppIn = document.getElementById(`dpp-${id}`).value;
@@ -520,26 +484,30 @@ function wireEvents(){
       renderAll();
       return;
     }
-    if (e.target.id.startsWith('include-')){
-      renderAll();
+
+    // 3) Toggle collapse only when header (not include switch) is clicked
+    const tz = e.target.closest('.toggle-zone');
+    if (tz){
+      const id = Number(tz.id.replace('toggle-zone-',''));
+      const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
+      const collapsed = blockEl.classList.toggle('collapsed');
+      tz.setAttribute('aria-expanded', String(!collapsed));
       return;
     }
   });
 
-  // Inputs (pins/acres/floor/dpp)
   blocksEl.addEventListener('input', (e)=>{
     const id = e.target.id;
     if (/^(pins-|acres-|floor-|dpp-)/.test(id)) renderAll();
   });
   blocksEl.addEventListener('change', (e)=>{
     const id = e.target.id;
-    if (/^(pins-|acres-|floor-|dpp-)/.test(id)) renderAll();
+    if (/^(pins-|acres-|floor-|dpp-|include-)/.test(id)) renderAll();
   });
 }
 
 /* ========= Boot ========= */
 (function start(){
-  // Script is at end of <body>, DOM already parsed—no timing issues.
   wireEvents();
   addNewBlock({ pins:400, acres:54, collapsed:false });
 })();
