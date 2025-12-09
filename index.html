@@ -5,23 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Pass Pricing — Blocks, Hours, Adjusted Columns</title>
 <style>
-  :root{--yellow:#fff36a;--gray:#d9d9d9;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
+  :root{--yellow:#fff36a;--gray:#e5e7eb;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
   *{box-sizing:border-box}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
        margin:0;background:#f8fafc;color:var(--ink)}
   .wrap{max-width:1100px;margin:24px auto;background:#fff;border:1px solid var(--border);
         border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.06)}
-  .bar{background:var(--gray);padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444;
+  .bar{background:#d9d9d9;padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444;
        display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .bar .right{display:flex;align-items:center;gap:8px}
-  .btn{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
+  .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
   .header h1{margin:0;font-size:28px;font-weight:800}
   .card{border-top:1px solid var(--border)}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
   .pill.inline{padding:6px 10px}
-  .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:0 16px 16px;background:#fff}
+  /* Master inputs: add top padding so they don’t hug the border */
+  .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+          gap:16px;padding:16px 16px 16px;background:#fff}
   .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
   .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
   .field input{width:100%;font-size:18px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;outline:none}
@@ -37,28 +39,30 @@
   .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:10px;display:none;margin:0 16px 12px}
   .blocks{padding:0 16px 24px}
   .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
-  .block .title{background:#f3f4f6;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .title .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .inactive{opacity:.55; filter:grayscale(0.4)}
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* Big clickable header zone (Block… through $/pin) */
+  /* Grey header "button" spanning Block… through $/pin + Include */
+  .title{background:#f3f4f6;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .toggle-zone{
-    flex:1;
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
-    background:#eef2ff;border:1px solid #c7d2fe;border-radius:999px;padding:10px 12px;
-    cursor:pointer;outline:none;
+    flex:1; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--gray); border:1px solid #cbd5e1; border-radius:12px; padding:10px 12px;
+    cursor:pointer; outline:none;
   }
-  .toggle-zone:focus{box-shadow:0 0 0 3px rgba(37,99,235,.25)}
-  .tz-left{display:flex;align-items:center;gap:10px}
-  .tz-right{display:flex;align-items:center;gap:12px;color:#1f2937}
+  .toggle-zone:hover{background:#e2e8f0}
+  .toggle-zone:focus{box-shadow:0 0 0 3px rgba(100,116,139,.25)}
+  .tz-left{display:flex;align-items:center;gap:10px; font-weight:700; color:#111827}
+  .tz-right{display:flex;align-items:center;gap:14px; color:#1f2937}
+  .switch{display:flex;align-items:center;gap:6px;font-size:12px}
+  .switch input{transform:scale(1.1)}
 
   /* Adjusted Total column: pill ABOVE controls */
   .adj-inline{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
   .adj-controls{display:flex;align-items:center;gap:8px}
   .adj-controls input{max-width:110px}
 
+  /* Payment footer spacing */
   .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
 </style>
 </head>
@@ -140,7 +144,7 @@
       </table>
     </div>
 
-    <!-- Payments: single pill with extra inset from border -->
+    <!-- Payments: single pill, inset from border -->
     <div class="foot" style="justify-content:flex-start">
       <span class="muted">Payment plan:</span>
       <span class="pill inline" id="masterPaymentPill">—</span>
@@ -204,22 +208,20 @@ function blockTemplate(b){
 
   el.innerHTML = `
     <div class="title">
-      <!-- Clickable header zone -->
+      <!-- Grey clickable header button -->
       <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
         <div class="tz-left">
-          <span class="pill inline">Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
+          <span>Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
         </div>
         <div class="tz-right">
           <span class="muted" id="effectiveFloor-${b.id}"></span>
           <span class="muted" id="effectiveDpp-${b.id}"></span>
+          <label class="switch" id="include-wrap-${b.id}">
+            <input type="checkbox" id="include-${b.id}" ${b.include ? 'checked' : ''}>
+            <span>Include in totals</span>
+          </label>
         </div>
       </div>
-
-      <!-- Keep include switch outside the clickable zone -->
-      <label class="switch">
-        <input type="checkbox" id="include-${b.id}" ${b.include ? 'checked' : ''}>
-        <span>Include in totals</span>
-      </label>
     </div>
 
     <div class="block-body">
@@ -247,8 +249,8 @@ function blockTemplate(b){
         <div class="field">
           <label>Passes (add/remove)</label>
           <div class="row-controls">
-            <button class="btn" id="removePass-${b.id}">Remove 1 Pass</button>
-            <button class="btn" id="addPass-${b.id}">Add 1 Pass</button>
+            <button class="btn" id="removePass-${b.id}">− Remove 1 Pass</button>
+            <button class="btn" id="addPass-${b.id}">+ Add 1 Pass</button>
           </div>
           <div class="hint">Min 1, max 8.</div>
         </div>
@@ -491,6 +493,10 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
     if (eff < 8){ bb.addedPasses = (bb.addedPasses||0) + 1; renderAll(); }
   });
 
+  // include inside header: stop toggle when clicking the checkbox/label
+  const includeWrap = document.getElementById(`include-wrap-${id}`);
+  includeWrap.addEventListener('click', e => e.stopPropagation());
+  document.getElementById(`include-${id}`).addEventListener('click', e => { e.stopPropagation(); renderAll(); });
   document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
   // header toggle (mouse + keyboard)
@@ -561,8 +567,7 @@ document.getElementById('masterRemovePass').addEventListener('click', ()=>{
 });
 
 /* ========= Boot ========= */
-function addNewBlockInitial(){ addNewBlock({ pins:400, acres:54, collapsed:false }); }
-addNewBlockInitial();
+addNewBlock({ pins:400, acres:54, collapsed:false });
 renderAll();
 </script>
 </body>
