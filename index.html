@@ -21,7 +21,7 @@
   .card{border-top:1px solid var(--border)}
   .card-head{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600}
-  .pill.button{cursor:pointer;user-select:none}
+  .pill.button{cursor:pointer;user-select:none;display:inline-block}
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:0 16px 16px;background:#fff}
   .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
   .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
@@ -183,7 +183,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
 }
 
 /*=====================  STATE  =====================*/
-let blocks = []; // each: {id, pins, acres, include, removedPasses, addedPasses, monthsTouched, monthsVal, collapsed}
+let blocks = []; // {id, pins, acres, include, removedPasses, addedPasses, monthsTouched, monthsVal, collapsed}
 let masterMonthsTouched = false;
 let blockSeq = 1;
 
@@ -197,7 +197,10 @@ function blockTemplate(b){
   el.innerHTML = `
     <div class="title">
       <div class="title-left">
-        <span class="pill button" id="toggle-${b.id}" aria-expanded="${!b.collapsed}">Block ${b.id} — 0.00 h — ${b.collapsed ? 'Open' : 'Collapse'}</span>
+        <!-- FULL PILL CLICKABLE; NO "Open/Collapse" TEXT -->
+        <span class="pill button" id="toggle-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
+          Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h
+        </span>
         <label class="switch">
           <input type="checkbox" id="include-${b.id}" ${b.include ? 'checked' : ''}>
           <span>Include in totals</span>
@@ -381,14 +384,12 @@ function renderAll(){
         }
       });
 
+      // Update pill hours (no open/collapse text)
+      document.getElementById(`pillHours-${b.id}`).textContent = hoursSum.toFixed(2);
+
       document.getElementById(`passesCell-${b.id}`).textContent = q.passCount;
       document.getElementById(`hoursCell-${b.id}`).textContent  = `${hoursSum.toFixed(2)} h`;
       document.getElementById(`grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
-
-      // Update the collapsible pill text with hours + state
-      const pill = document.getElementById(`toggle-${b.id}`);
-      const isCollapsed = blockEl.classList.contains('collapsed');
-      pill.textContent = `Block ${b.id} — ${hoursSum.toFixed(2)} h — ${isCollapsed ? 'Open' : 'Collapse'}`;
 
       // payments (per-block)
       const payWrap = document.getElementById(`payments-${b.id}`); payWrap.innerHTML='';
@@ -429,8 +430,8 @@ function renderAll(){
     const weightedPerAcre= row.acres > 0 ? round2(baseRowTotal / row.acres) : 0;
     const hoursPass      = round2(baseRowTotal / 180);
 
-    const adjPerAcre     = round2(weightedPerAcre * adjFactor);
-    const adjRowTotal    = round2(baseRowTotal * adjFactor);
+    const adjPerAcre     = round2(weightedPerAcre * (1 + (Number(document.getElementById('masterAdjPct').value||0)/100)));
+    const adjRowTotal    = round2(baseRowTotal * (1 + (Number(document.getElementById('masterAdjPct').value||0)/100)));
 
     baseTotal  += baseRowTotal;
     masterHours+= hoursPass;
@@ -454,6 +455,7 @@ function renderAll(){
   document.getElementById('masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
   document.getElementById('masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
 
+  const adjFactor = 1 + (Number(document.getElementById('masterAdjPct').value||0)/100);
   const adjTotal = round2(baseTotal * adjFactor);
   document.getElementById('masterAdjTotal').textContent = `Adjusted: ${fmtUSD(adjTotal)}`;
   document.getElementById('masterAdjPassSum').textContent = fmtUSD(round2(adjPassSum));
@@ -497,7 +499,6 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 
   document.getElementById(`removePass-${id}`).addEventListener('click', ()=>{
     const bb = blocks.find(x=>x.id===id);
-    // compute effective passes to protect min=1
     const pins = Math.trunc(Number(document.getElementById(`pins-${id}`).value||0));
     const acres= Number(document.getElementById(`acres-${id}`).value||0);
     const dpp  = Number(document.getElementById(`dpp-${id}`).value||NaN);
@@ -525,12 +526,16 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 
   document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
-  // collapse/expand pill
-  document.getElementById(`toggle-${id}`).addEventListener('click', ()=>{
+  // FULL pill clickable: click + keyboard (Enter/Space)
+  const pill = document.getElementById(`toggle-${id}`);
+  const toggle = ()=>{
     const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
     const collapsed = blockEl.classList.toggle('collapsed');
-    const pill = document.getElementById(`toggle-${id}`);
-    pill.textContent = pill.textContent.replace(/Open|Collapse/g, collapsed ? 'Open' : 'Collapse');
+    pill.setAttribute('aria-expanded', String(!collapsed));
+  };
+  pill.addEventListener('click', toggle);
+  pill.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
   });
 
   // initial values
