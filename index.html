@@ -11,17 +11,20 @@
        margin:0;background:#f8fafc;color:var(--ink)}
   .wrap{max-width:1100px;margin:24px auto;background:#fff;border:1px solid var(--border);
         border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+
+  /* Top bar */
   .bar{background:#d9d9d9;padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444;
        display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .bar .right{display:flex;align-items:center;gap:8px}
   .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
   .btn:disabled{opacity:.5;cursor:not-allowed}
-  .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
-  .header h1{margin:0;font-size:28px;font-weight:800}
-  .card{border-top:1px solid var(--border)}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
   .pill.inline{padding:6px 10px}
 
+  /* Master summary */
+  .card{border-top:1px solid var(--border)}
+  .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
+  .header h1{margin:0;font-size:28px;font-weight:800}
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
           gap:16px;padding:16px;background:#fff}
   .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
@@ -30,6 +33,8 @@
   .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
   .hint{font-size:11px;color:#6b7280;margin-top:6px}
   .muted{color:#6b7280}
+
+  /* Tables */
   .grid{width:100%;border-collapse:collapse;margin:8px 0 16px}
   .grid th,.grid td{border:1px solid var(--border);padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums}
   .grid th:first-child,.grid td:first-child{text-align:center}
@@ -38,26 +43,29 @@
   .row-hi{background:var(--yellow)}
   .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:10px;display:none;margin:0 16px 12px}
 
+  /* Blocks area */
   .blocks{padding:0 16px 24px}
   .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* Header: white background; pill is outline-only (no fill) */
-  .title{background:#fff;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  /* Single pill header (light grey on white). No outer pill/background. */
+  .title{background:#fff;padding:10px 0} /* pure white background strip */
   .toggle-zone{
-    flex:1;display:flex;align-items:center;justify-content:space-between;gap:12px;
-    background:transparent;border:1px solid #d1d5db;border-radius:9999px;padding:10px 14px;
-    cursor:pointer;outline:none;color:#111827;
+    margin:0 12px; /* gap from edges so only one pill is visible */
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:#f3f4f6; /* light grey fill */
+    border:1px solid #d1d5db; border-radius:9999px; padding:10px 14px;
+    cursor:pointer; outline:none; color:#111827;
   }
-  .toggle-zone:hover{background:transparent}
   .toggle-zone:focus{box-shadow:0 0 0 3px rgba(100,116,139,.25)}
   .tz-left{display:flex;align-items:center;gap:10px;font-weight:700}
   .tz-right{display:flex;align-items:center;gap:14px}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .switch input{transform:scale(1.1)}
 
+  /* Master adjusted total */
   .adj-inline{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
   .adj-controls{display:flex;align-items:center;gap:8px}
   .adj-controls input{max-width:110px}
@@ -75,6 +83,7 @@
     </div>
   </div>
 
+  <!-- MASTER SUMMARY -->
   <div class="card" id="masterCard">
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
@@ -146,6 +155,7 @@
     </div>
   </div>
 
+  <!-- BLOCKS -->
   <div class="blocks" id="blocks"></div>
 </div>
 
@@ -192,6 +202,7 @@
     el.className='block'+(b.collapsed?' collapsed':''); el.dataset.blockId=b.id;
     el.innerHTML=`
       <div class="title">
+        <!-- SINGLE pill only -->
         <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
           <div class="tz-left">
             <span>Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
@@ -322,7 +333,7 @@
         const pcP=document.getElementById(`passcount-${b.id}`); if(pcP) pcP.textContent=`Passes: ${q.passCount}`;
         const totP=document.getElementById(`total-${b.id}`); if(totP) totP.textContent=`Whole-field total: ${fmtUSD(q.fieldTotal)}`;
 
-        const tbody=document.getElementById(`rows-${b.id}`); if(tbody) tbody.innerHTML='';
+        const tbody=document.getElementById(`rows-${b.id}`); if (tbody) tbody.innerHTML='';
         let hoursSum=0;
         for(const p of q.passes){
           const passTotal=round2(p.perAcre*acres);
@@ -366,6 +377,7 @@
 
     const mBody=document.getElementById('masterPassRows'); if(mBody) mBody.innerHTML='';
     let baseTotal=0, masterHours=0;
+    const adjFactor=1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100);
     for(let i=0;i<masterRows.length;i++){
       const row=masterRows[i]; if(!row) continue;
       const baseRowTotal=round2(row.total);
@@ -457,9 +469,8 @@
     renderAll();
   }
 
-  /* ===== Init (robust) ===== */
+  /* ===== Init ===== */
   function init(){
-    // Wire globals
     document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
     document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched=true; renderAll(); });
     document.getElementById('masterMonths').addEventListener('change', ()=>{ masterMonthsTouched=true; renderAll(); });
@@ -478,35 +489,4 @@
         const acres=Number(document.getElementById(`acres-${b.id}`).value||0);
         const dpp=Number(document.getElementById(`dpp-${b.id}`).value);
         const mdpp=Number(document.getElementById('masterDpp').value||20);
-        const effDpp=(Number.isFinite(dpp)&&document.getElementById(`dpp-${b.id}`).value!=='')?dpp:mdpp;
-        const base=calcBase(pins, Math.max(0.01, acres), effDpp);
-        const eff=clamp(base.autoCount+(b.addedPasses||0)-(b.removedPasses||0),1,8);
-        if(eff<8) b.addedPasses=(b.addedPasses||0)+1;
-      }); renderAll();
-    });
-    document.getElementById('masterRemovePass').addEventListener('click', ()=>{
-      blocks.forEach(b=>{
-        const pins=Math.trunc(Number(document.getElementById(`pins-${b.id}`).value||0));
-        const acres=Number(document.getElementById(`acres-${b.id}`).value||0);
-        const dpp=Number(document.getElementById(`dpp-${b.id}`).value);
-        const mdpp=Number(document.getElementById('masterDpp').value||20);
-        const effDpp=(Number.isFinite(dpp)&&document.getElementById(`dpp-${b.id}`).value!=='')?dpp:mdpp;
-        const base=calcBase(pins, Math.max(0.01, acres), effDpp);
-        const eff=clamp(base.autoCount+(b.addedPasses||0)-(b.removedPasses||0),1,8);
-        if(eff>1){ if((b.addedPasses||0)>0) b.addedPasses-=1; else b.removedPasses=(b.removedPasses||0)+1; }
-      }); renderAll();
-    });
-
-    // Seed one visible block
-    addNewBlock({pins:400, acres:54, collapsed:false});
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init(); // if script is at end and DOM already parsed
-  }
-})();
-</script>
-</body>
-</html>
+        const effDpp
