@@ -20,8 +20,7 @@
   .header h1{margin:0;font-size:28px;font-weight:800}
   .card{border-top:1px solid var(--border)}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
-  .pill.button{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none;outline:none}
-  .pill.button:focus{box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+  .pill.inline{padding:6px 10px}
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:0 16px 16px;background:#fff}
   .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
   .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
@@ -38,18 +37,28 @@
   .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:10px;display:none;margin:0 16px 12px}
   .blocks{padding:0 16px 24px}
   .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
-  .block .title{background:#f3f4f6;padding:10px 12px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .title-left{display:flex;align-items:center;gap:12px}
-  .title-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .block .title{background:#f3f4f6;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .title .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .inactive{opacity:.55; filter:grayscale(0.4)}
-  .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
+  /* Big clickable zone across the header (Block N … -> $/pin) */
+  .toggle-zone{
+    flex:1;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:#eef2ff;border:1px solid #c7d2fe;border-radius:999px;padding:10px 12px;
+    cursor:pointer;outline:none;
+  }
+  .toggle-zone:focus{box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+  .tz-left{display:flex;align-items:center;gap:10px}
+  .tz-right{display:flex;align-items:center;gap:12px;color:#1f2937}
   /* Adjust-by-% tidy stack in Adjusted Total column */
   .adj-inline{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
   .adj-controls{display:flex;align-items:center;gap:8px}
   .adj-controls input{max-width:110px}
   .pay-pill{padding:6px 10px; display:inline-block}
+  /* Give the master footer extra left breathing room */
+  .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
 </style>
 </head>
 <body>
@@ -57,7 +66,7 @@
   <div class="bar">
     <div>NAME</div>
     <div class="right">
-      <span class="pill" id="blockCountPill" style="padding:6px 10px">Blocks: 1 (active 1)</span>
+      <span class="pill inline" id="blockCountPill">Blocks: 1 (active 1)</span>
       <button class="btn" id="addBlockBtn">+ Add Block</button>
     </div>
   </div>
@@ -93,7 +102,6 @@
       </div>
     </div>
 
-    <!-- Included acres -->
     <div class="muted" id="masterAcreInfoMuted" style="padding:0 16px 8px">Included acres: —</div>
 
     <div style="padding:0 16px 0">
@@ -115,9 +123,7 @@
             <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
             <td></td>
             <td id="masterHoursCell" style="text-align:right">— h</td>
-            <!-- Column 5: base total only -->
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
-            <!-- Column 6: adjuster + light-blue adjusted total pill -->
             <td id="masterAdjCell" style="text-align:right">
               <div class="adj-inline">
                 <div class="adj-controls">
@@ -125,7 +131,7 @@
                   <input id="masterAdjPct" type="number" step="1" min="-100" max="100" value="0" />
                   <button class="btn" id="adjPlus">+1%</button>
                 </div>
-                <span class="pill pay-pill" id="masterAdjTotalPill">Adjusted Total: $—</span>
+                <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
               </div>
             </td>
           </tr>
@@ -133,10 +139,10 @@
       </table>
     </div>
 
-    <!-- Payments: single pill -->
-    <div class="foot" style="justify-content:flex-start; gap:12px">
+    <!-- Payments: single pill, inset from border by .foot padding -->
+    <div class="foot" style="justify-content:flex-start">
       <span class="muted">Payment plan:</span>
-      <span class="pill pay-pill" id="masterPaymentPill">—</span>
+      <span class="pill inline" id="masterPaymentPill">—</span>
     </div>
   </div>
 
@@ -174,7 +180,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin){
     let rate = (i===1) ? basePerAcre : (prev/2);
     let floored = false;
     if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
-    prev = rate; // halving uses floored
+    prev = rate;
     passes.push({ number:i, perAcre:rate, floored });
   }
   const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
@@ -196,20 +202,22 @@ function blockTemplate(b){
 
   el.innerHTML = `
     <div class="title">
-      <div class="title-left">
-        <!-- FULL PILL CLICKABLE -->
-        <span class="pill button" id="toggle-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
-          Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h
-        </span>
-        <label class="switch">
-          <input type="checkbox" id="include-${b.id}" ${b.include ? 'checked' : ''}>
-          <span>Include in totals</span>
-        </label>
+      <!-- Big clickable area spanning from "Block N — …h" to the $/pin readouts -->
+      <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
+        <div class="tz-left">
+          <span class="pill inline">Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
+        </div>
+        <div class="tz-right">
+          <span class="muted" id="effectiveFloor-${b.id}"></span>
+          <span class="muted" id="effectiveDpp-${b.id}"></span>
+        </div>
       </div>
-      <div class="title-right">
-        <span class="muted" id="effectiveFloor-${b.id}"></span>
-        <span class="muted" id="effectiveDpp-${b.id}"></span>
-      </div>
+
+      <!-- Keep include switch outside the clickable zone -->
+      <label class="switch">
+        <input type="checkbox" id="include-${b.id}" ${b.include ? 'checked' : ''}>
+        <span>Include in totals</span>
+      </label>
     </div>
 
     <div class="block-body">
@@ -245,9 +253,9 @@ function blockTemplate(b){
       </div>
 
       <div style="padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap">
-        <span class="pill" id="base-${b.id}" style="padding:6px 10px">Base: $— / acre</span>
-        <span class="pill" id="passcount-${b.id}" style="padding:6px 10px">Passes: —</span>
-        <span class="pill" id="total-${b.id}" style="padding:6px 10px">Whole-field total: $—</span>
+        <span class="pill inline" id="base-${b.id}">Base: $— / acre</span>
+        <span class="pill inline" id="passcount-${b.id}">Passes: —</span>
+        <span class="pill inline" id="total-${b.id}">Whole-field total: $—</span>
       </div>
 
       <div style="padding:0 16px 0">
@@ -337,7 +345,8 @@ function renderAll(){
       // calc
       const q = calcWithCount(pins, acres, effPasses, floorVal, dppVal);
 
-      // header pills
+      // header readouts
+      document.getElementById(`pillHours-${b.id}`).textContent = (q.passes.reduce((s,p)=>s+round2((p.perAcre*acres)/180),0)).toFixed(2);
       document.getElementById(`base-${b.id}`).textContent = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
       document.getElementById(`passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
       document.getElementById(`total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(q.fieldTotal)}`;
@@ -368,7 +377,6 @@ function renderAll(){
         }
       });
 
-      document.getElementById(`pillHours-${b.id}`).textContent = hoursSum.toFixed(2);
       document.getElementById(`passesCell-${b.id}`).textContent = q.passCount;
       document.getElementById(`hoursCell-${b.id}`).textContent  = `${hoursSum.toFixed(2)} h`;
       document.getElementById(`grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
@@ -394,6 +402,7 @@ function renderAll(){
   // rows
   const mBody = document.getElementById('masterPassRows'); mBody.innerHTML='';
   let baseTotal = 0, masterHours = 0, adjPassSum = 0;
+  const adjFactor = 1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100);
 
   for (let i=0;i<masterRows.length;i++){
     const row = masterRows[i];
@@ -492,15 +501,15 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 
   document.getElementById(`include-${id}`).addEventListener('change', renderAll);
 
-  // FULL pill toggle (click + keyboard)
-  const pill = document.getElementById(`toggle-${id}`);
+  // FULL header toggle (mouse + keyboard) on the toggle-zone
+  const tz = document.getElementById(`toggle-zone-${id}`);
   const toggle = ()=>{
     const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
     const collapsed = blockEl.classList.toggle('collapsed');
-    pill.setAttribute('aria-expanded', String(!collapsed));
+    tz.setAttribute('aria-expanded', String(!collapsed));
   };
-  pill.addEventListener('click', toggle);
-  pill.addEventListener('keydown', (e)=>{
+  tz.addEventListener('click', toggle);
+  tz.addEventListener('keydown', (e)=>{
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
   });
 
