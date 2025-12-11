@@ -24,20 +24,33 @@
 
   /* Master summary */
   .card{border-top:1px solid var(--border)}
-  .header{background:#fff36a;padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
+  .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
   .header h1{margin:0;font-size:28px;font-weight:800}
-  .inputs{padding:12px 16px;background:#fff}
-  .controls-row{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;overflow-x:auto}
-  .row-controls{display:flex;gap:8px;align-items:center}
-  .muted{color:#6b7280}
 
-  /* Compact chips (inline with Master Pass Control) */
-  .chips{display:flex;align-items:center;gap:8px}
+  .inputs{padding:12px 16px;background:#fff}
+  /* EVERYTHING ON ONE LINE */
+  .controls-row{
+    display:flex;align-items:center;gap:10px;
+    flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px;
+  }
+
+  /* Pass −/+ as pill buttons */
+  .pill-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
+    padding:8px 14px;font-weight:700;color:#111827;white-space:nowrap;cursor:pointer;
+  }
+  .pill-btn:active{transform:translateY(1px)}
+
+  /* Compact chips */
+  .chips{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
   .chip{display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
         padding:6px 10px;font-weight:600;white-space:nowrap}
   .chip label{font-size:12px;color:#374151}
   .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
   .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+
+  .muted{color:#6b7280}
 
   /* Tables */
   .grid{width:100%;border-collapse:collapse;margin:8px 0 16px}
@@ -107,14 +120,12 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- Everything inline: Master Pass Control + Months + Min + $/pin -->
+    <!-- One horizontal row: Pass pills + months/min/dpp chips -->
     <div class="inputs">
       <div class="controls-row">
-        <div class="row-controls cust-hide">
-          <button class="btn" id="masterRemovePass" type="button">− Pass All</button>
-          <button class="btn" id="masterAddPass" type="button">+ Pass All</button>
-          <span class="muted">Min 1 · Max 8</span>
-        </div>
+        <button class="pill-btn cust-hide" id="masterRemovePass" type="button">− Pass All</button>
+        <button class="pill-btn cust-hide" id="masterAddPass" type="button">+ Pass All</button>
+        <span class="muted cust-hide">Min 1 · Max 8</span>
 
         <div class="chips cust-hide">
           <div class="chip">
@@ -361,27 +372,27 @@ function renderAll(){
           const hours     = round2(passTotal / 180);
           blockHours += hours;
 
-        const tr = document.createElement('tr');
-        if (p.number===1) tr.classList.add('row-hi');
-        tr.innerHTML = `
-          <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
-          <td>${fmtUSD(round2(p.perAcre))}</td>
-          <td>${hours.toFixed(2)} h</td>
-          <td>${fmtUSD(passTotal)}</td>`;
-        tbody.appendChild(tr);
+          const tr = document.createElement('tr');
+          if (p.number===1) tr.classList.add('row-hi');
+          tr.innerHTML = `
+            <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
+            <td>${fmtUSD(round2(p.perAcre))}</td>
+            <td>${hours.toFixed(2)} h</td>
+            <td>${fmtUSD(passTotal)}</td>`;
+          tbody.appendChild(tr);
 
-        if (include){
-          const idx = p.number-1;
-          if (!masterRows[idx]) masterRows[idx] = { total:0, acres:0 };
-          masterRows[idx].total += passTotal;
-          masterRows[idx].acres += acres;
+          if (include){
+            const idx = p.number-1;
+            if (!masterRows[idx]) masterRows[idx] = { total:0, acres:0 };
+            masterRows[idx].total += passTotal;
+            masterRows[idx].acres += acres;
+          }
         }
-      }
-      $(`#passesCell-${b.id}`).textContent = q.passCount;
-      $(`#hoursCell-${b.id}`).textContent  = `${blockHours.toFixed(2)} h`;
-      $(`#grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
+        $(`#passesCell-${b.id}`).textContent = q.passCount;
+        $(`#hoursCell-${b.id}`).textContent  = `${blockHours.toFixed(2)} h`;
+        $(`#grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
 
-      if (include){ totalActiveAcres += acres; activeBlocks++; }
+        if (include){ totalActiveAcres += acres; activeBlocks++; }
       }catch(inner){
         if (err){ err.style.display='block'; err.textContent = inner.message; }
         console.error(inner);
@@ -441,8 +452,8 @@ function renderAll(){
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
   const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed };
-  blocks.push(b);
-  $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
+  blocks.push(b);                              /* keep state */
+  $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b)); /* inject DOM */
   renderAll();
 }
 
@@ -468,7 +479,7 @@ function wireEvents(){
     const i=$('#masterAdjPct'); i.value = clamp((Number(i.value)||0)+1, -100, 100); renderAll();
   });
 
-  // Master pass control
+  // Master pass control (pill buttons)
   $('#masterRemovePass').addEventListener('click', ()=>{
     for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; }
     renderAll();
