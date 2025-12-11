@@ -26,12 +26,15 @@
   .header h1{margin:0;font-size:22px;font-weight:800}
 
   .inputs{padding:8px 12px;background:#fff}
-  /* Single horizontal row (no stacking) */
-  .controls-row{
-    display:flex;align-items:flex-end;gap:8px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px
-  }
 
-  /* Master Pass Control group: title above, buttons in a row */
+  /* ===== STRICT HORIZONTAL TOP ROW (NO STACKING) ===== */
+  .controls-row{
+    display:flex;align-items:flex-end;gap:8px;flex-wrap:nowrap;
+    overflow-x:auto;white-space:nowrap;padding-bottom:2px
+  }
+  .controls-row > *{flex:0 0 auto} /* prevent children from stretching/wrapping */
+
+  /* Master Pass Control group: title above, buttons inline */
   .group{display:flex;flex-direction:column;gap:4px;min-width:max-content}
   .group .label{font-size:11px;color:#374151;font-weight:700;letter-spacing:.02em;margin-left:2px}
   .row-controls{display:flex;gap:6px;align-items:center}
@@ -42,10 +45,9 @@
   }
   .pill-btn:active{transform:translateY(1px)}
 
-  /* Compact chips */
-  .chips{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+  /* Compact chips (Months, Min $/acre, $/pin) — each its own sibling to enforce left→right order */
   .chip{
-    display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
+    display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
     padding:4px 8px;font-weight:600;white-space:nowrap
   }
   .chip label{font-size:11px;color:#374151}
@@ -54,7 +56,7 @@
 
   .muted{color:#6b7280}
 
-  /* Tables (tighter) */
+  /* Tables (tight) */
   .grid{width:100%;border-collapse:collapse;margin:6px 0 10px}
   .grid th,.grid td{border:1px solid var(--border);padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums}
   .grid th:first-child,.grid td:first-child{text-align:center}
@@ -63,16 +65,16 @@
   .row-hi{background:var(--yellow)}
   .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:10px;display:none;margin:0 12px 8px}
 
-  /* Blocks (tighter spacing) */
-  .blocks{padding:0 12px 12px}
-  .block{border:none;border-radius:12px;margin:6px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
+  /* Blocks (even tighter spacing) */
+  .blocks{padding:0 12px 10px}
+  .block{border:none;border-radius:12px;margin:4px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
 
-  /* Collapsible header pill — NO BORDER, tighter */
+  /* Collapsible header pill — NO BORDER, tight spacing */
   .title{background:#fff;padding:0}
   .toggle-zone{
-    margin:6px;
+    margin:4px;
     display:flex;align-items:center;justify-content:space-between;gap:8px;
     background:#f3f4f6;border:none;border-radius:9999px;padding:8px 12px;
     cursor:pointer;outline:none;color:#111827;box-shadow:none;-webkit-tap-highlight-color:transparent
@@ -83,11 +85,11 @@
   .switch{display:flex;align-items:center;gap:4px;font-size:12px}
   .switch input{transform:scale(1.05)}
 
-  /* Block chips row — pills + even tighter gaps */
+  /* Block chips row — pills + tighter gaps */
   .block .inputs{padding:6px 10px}
   .block .controls-row{gap:6px}
-  .block .chips{gap:6px}
-  .block .chip{padding:4px 8px}
+  .block .chip{padding:4px 8px;margin-right:6px}
+  .block .chip:last-child{margin-right:0}
   .block .chip input{width:68px;font-size:13px;padding:3px 6px}
   .block .row-controls{gap:6px}
   .block .pill-btn{padding:6px 10px}
@@ -98,12 +100,12 @@
   .cust-hide{display:block}
   body.customer .cust-hide{display:none !important}
   body.customer .blocks{display:none !important}
-  .col-adj-peracre, .col-hours, .col-adj-total{display:table-cell}
+  .col-adj-peracre,.col-hours,.col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
   body.customer .col-hours,
   body.customer .col-adj-total{display:none}
 
-  /* Adjust controls next to Adjusted Total */
+  /* Adjust controls */
   .adj-row{display:flex;align-items:center;gap:6px;justify-content:flex-end;flex-wrap:wrap}
   .adj-controls{display:flex;align-items:center;gap:6px}
   .adj-controls input{width:70px}
@@ -130,7 +132,7 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- EXACT ORDER: Master Pass Control (left) → Months → Min $/acre → $/pin -->
+    <!-- EXACT ORDER: [Master Pass Control] [Months] [Min $/acre] [$ / pin] -->
     <div class="inputs">
       <div class="controls-row">
         <div class="group cust-hide">
@@ -141,19 +143,18 @@
           </div>
         </div>
 
-        <div class="chips cust-hide">
-          <div class="chip">
-            <label for="masterMonths">Months</label>
-            <input id="masterMonths" type="number" min="1" max="12" step="1" />
-          </div>
-          <div class="chip">
-            <label for="masterFloor">Min $/acre</label>
-            <input id="masterFloor" type="number" min="0" step="0.01" value="20" />
-          </div>
-          <div class="chip">
-            <label for="masterDpp">$ / pin</label>
-            <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
-          </div>
+        <!-- each chip is a SIBLING to keep left→right order -->
+        <div class="chip cust-hide">
+          <label for="masterMonths">Months</label>
+          <input id="masterMonths" type="number" min="1" max="12" step="1" />
+        </div>
+        <div class="chip cust-hide">
+          <label for="masterFloor">Min $/acre</label>
+          <input id="masterFloor" type="number" min="0" step="0.01" value="20" />
+        </div>
+        <div class="chip cust-hide">
+          <label for="masterDpp">$ / pin</label>
+          <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
         </div>
       </div>
     </div>
@@ -251,7 +252,7 @@ let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed}
 let blockSeq = 1;
 let masterMonthsTouched = false;
 
-/* ========= Block template (chips + pill controls) ========= */
+/* ========= Block template ========= */
 function blockHTML(b){
   return `
   <div class="block${b.collapsed?' collapsed':''}" data-block-id="${b.id}">
@@ -276,26 +277,25 @@ function blockHTML(b){
 
       <div class="inputs">
         <div class="controls-row">
-          <div class="chips">
-            <div class="chip">
-              <label for="pins-${b.id}">Pins</label>
-              <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}">
-            </div>
-            <div class="chip">
-              <label for="acres-${b.id}">Acres</label>
-              <input id="acres-${b.id}" type="number" min="0" step="0.01" value="${b.acres}">
-            </div>
-            <div class="chip">
-              <label for="floor-${b.id}">Min $/acre</label>
-              <input id="floor-${b.id}" type="number" min="0" step="0.01" placeholder="">
-            </div>
-            <div class="chip">
-              <label for="dpp-${b.id}">$ / pin</label>
-              <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
-            </div>
+          <!-- Pills inside each block -->
+          <div class="chip">
+            <label for="pins-${b.id}">Pins</label>
+            <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}">
+          </div>
+          <div class="chip">
+            <label for="acres-${b.id}">Acres</label>
+            <input id="acres-${b.id}" type="number" min="0" step="0.01" value="${b.acres}">
+          </div>
+          <div class="chip">
+            <label for="floor-${b.id}">Min $/acre</label>
+            <input id="floor-${b.id}" type="number" min="0" step="0.01" placeholder="">
+          </div>
+          <div class="chip">
+            <label for="dpp-${b.id}">$ / pin</label>
+            <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
           </div>
 
-          <div class="row-controls">
+          <div class="row-controls" style="margin-left:8px">
             <button class="pill-btn" id="removePass-${b.id}" type="button">− Remove 1 Pass</button>
             <button class="pill-btn" id="addPass-${b.id}" type="button">+ Add 1 Pass</button>
           </div>
@@ -451,8 +451,8 @@ function renderAll(){
     if (!masterMonthsTouched || !Number.isFinite(months)){ months = maxPass; monthsEl.value = months; }
     months = clamp(Math.trunc(months), 1, 12); if (String(months)!==monthsEl.value) monthsEl.value = months;
 
-    const adjTotal = round2(baseTotal * adjFactor);
-    $('#masterBaseTotal').textContent = fmtUSD(customerMode ? adjTotal : round2(baseTotal));
+    const adjTotal = round2(baseTotal * (1 + (Math.trunc(Number($('#masterAdjPct')?.value)||0)/100)));
+    $('#masterBaseTotal').textContent = fmtUSD(document.body.classList.contains('customer') ? adjTotal : round2(baseTotal));
     $('#masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
 
     const payments = equalPayments(adjTotal, months);
@@ -512,7 +512,7 @@ function wireEvents(){
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
-    const btn = e.target.closest('button'); /* catches .pill-btn */
+    const btn = e.target.closest('button');
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
       const b = blocks.find(x=>x.id===id); if (!b) return;
