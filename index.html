@@ -28,13 +28,17 @@
   .header h1{margin:0;font-size:28px;font-weight:800}
 
   .inputs{padding:12px 16px;background:#fff}
-  /* One strict horizontal row */
-  .controls-row{
-    display:flex;align-items:flex-end;gap:12px;
-    flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;
-  }
+  .controls-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:nowrap;overflow-x:auto}
 
-  /* Pass −/+ as pill buttons, with title above */
+  /* Pills */
+  .chips{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+  .chip{display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
+        padding:6px 10px;font-weight:600;white-space:nowrap}
+  .chip label{font-size:12px;color:#374151}
+  .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
+  .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+
+  /* Pass pills + title */
   .group{display:flex;flex-direction:column;gap:6px}
   .group .label{font-size:12px;color:#374151;font-weight:700;letter-spacing:.02em}
   .pill-btn{
@@ -43,14 +47,7 @@
     padding:8px 14px;font-weight:700;color:#111827;white-space:nowrap;cursor:pointer;
   }
   .pill-btn:active{transform:translateY(1px)}
-
-  /* Compact chips */
-  .chips{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
-  .chip{display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
-        padding:6px 10px;font-weight:600;white-space:nowrap}
-  .chip label{font-size:12px;color:#374151}
-  .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
-  .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+  .row-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
   .muted{color:#6b7280}
 
@@ -65,27 +62,24 @@
 
   /* Blocks */
   .blocks{padding:0 16px 24px}
-  .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
+  .block{border:none;border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
 
-  /* Collapsible pill header */
+  /* Collapsible header pill — NO BORDER */
   .title{background:#fff;padding:0}
   .toggle-zone{
     margin:12px;
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    background:#f3f4f6; border:none; border-radius:9999px; padding:12px 16px;
-    cursor:pointer; outline:none; color:#111827; box-shadow:none;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:#f3f4f6;border:none;border-radius:9999px;padding:12px 16px;
+    cursor:pointer;outline:none;color:#111827;box-shadow:none;-webkit-tap-highlight-color:transparent;
   }
-  .toggle-zone:focus{outline:none; box-shadow:none}
+  .toggle-zone:focus{outline:none;box-shadow:none}
+
   .tz-left{display:flex;align-items:center;gap:10px;font-weight:700}
   .tz-right{display:flex;align-items:center;gap:14px}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .switch input{transform:scale(1.1)}
-
-  /* Block pass controls: pill style */
-  .row-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .row-controls .pill-btn{padding:6px 12px}
 
   .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
 
@@ -125,7 +119,6 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- Single horizontal row: Master Pass Control (left) → Months → Min $/acre → $/pin -->
     <div class="inputs">
       <div class="controls-row">
         <div class="group cust-hide">
@@ -141,16 +134,10 @@
             <label for="masterMonths">Months</label>
             <input id="masterMonths" type="number" min="1" max="12" step="1" />
           </div>
-        </div>
-
-        <div class="chips cust-hide">
           <div class="chip">
             <label for="masterFloor">Min $/acre</label>
             <input id="masterFloor" type="number" min="0" step="0.01" value="20" />
           </div>
-        </div>
-
-        <div class="chips cust-hide">
           <div class="chip">
             <label for="masterDpp">$ / pin</label>
             <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
@@ -252,7 +239,7 @@ let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed}
 let blockSeq = 1;
 let masterMonthsTouched = false;
 
-/* ========= Templates ========= */
+/* ========= Block template (chips inside blocks) ========= */
 function blockHTML(b){
   return `
   <div class="block${b.collapsed?' collapsed':''}" data-block-id="${b.id}">
@@ -271,35 +258,36 @@ function blockHTML(b){
         </div>
       </div>
     </div>
+
     <div class="block-body">
       <div id="err-${b.id}" class="notice"></div>
 
-      <div class="inputs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
-        <div class="field">
-          <label for="pins-${b.id}">Pin Count (whole number)</label>
-          <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}" />
-        </div>
-        <div class="field">
-          <label for="acres-${b.id}">Acres (fractional allowed)</label>
-          <input id="acres-${b.id}" type="number" min="0" step="0.01" value="${b.acres}" />
-        </div>
-        <div class="field">
-          <label for="floor-${b.id}">Min $/acre (optional override)</label>
-          <input id="floor-${b.id}" type="number" min="0" step="0.01" placeholder="">
-          <div class="muted" style="font-size:11px;margin-top:6px">Leave blank to use master.</div>
-        </div>
-        <div class="field">
-          <label for="dpp-${b.id}">$ per pin (optional override)</label>
-          <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
-          <div class="muted" style="font-size:11px;margin-top:6px">Leave blank to use master.</div>
-        </div>
-        <div class="field">
-          <label>Passes (add/remove)</label>
+      <!-- chips row inside the block -->
+      <div class="inputs">
+        <div class="controls-row">
+          <div class="chips">
+            <div class="chip">
+              <label for="pins-${b.id}">Pins</label>
+              <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}">
+            </div>
+            <div class="chip">
+              <label for="acres-${b.id}">Acres</label>
+              <input id="acres-${b.id}" type="number" min="0" step="0.01" value="${b.acres}">
+            </div>
+            <div class="chip">
+              <label for="floor-${b.id}">Min $/acre</label>
+              <input id="floor-${b.id}" type="number" min="0" step="0.01" placeholder="">
+            </div>
+            <div class="chip">
+              <label for="dpp-${b.id}">$ / pin</label>
+              <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
+            </div>
+          </div>
+
           <div class="row-controls">
             <button class="pill-btn" id="removePass-${b.id}" type="button">− Remove 1 Pass</button>
             <button class="pill-btn" id="addPass-${b.id}" type="button">+ Add 1 Pass</button>
           </div>
-          <div class="muted" style="font-size:11px;margin-top:6px">Min 1, max 8.</div>
         </div>
       </div>
 
@@ -339,8 +327,8 @@ function renderAll(){
   try{
     const floor = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterFloor').value));
     const dpp   = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterDpp').value));
-    let adjPct  = Math.trunc(Number($('#masterAdjPct').value)); if (!Number.isFinite(adjPct)) adjPct = 0;
-    adjPct = clamp(adjPct,-100,100); if (String(adjPct)!==$('#masterAdjPct').value) $('#masterAdjPct').value = adjPct;
+    let adjPct  = Math.trunc(Number($('#masterAdjPct')?.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
+    adjPct = clamp(adjPct,-100,100); if ($('#masterAdjPct') && String(adjPct)!=$('#masterAdjPct').value) $('#masterAdjPct').value = adjPct;
     const adjFactor = 1 + (adjPct/100);
     const customerMode = document.body.classList.contains('customer');
 
@@ -480,18 +468,20 @@ function wireEvents(){
     renderAll();
   });
 
-  // Top controls
+  // Master chips
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
   // Adjust %
-  $('#masterAdjPct').addEventListener('input', renderAll);
-  $('#adjMinus').addEventListener('click', ()=>{
-    const i=$('#masterAdjPct'); i.value = clamp((Number(i.value)||0)-1, -100, 100); renderAll();
+  $('#masterAdjPct')?.addEventListener('input', renderAll);
+  $('#adjMinus')?.addEventListener('click', ()=>{
+    const i=$('#masterAdjPct'); if (!i) return;
+    i.value = clamp((Number(i.value)||0)-1, -100, 100); renderAll();
   });
-  $('#adjPlus').addEventListener('click', ()=>{
-    const i=$('#masterAdjPct'); i.value = clamp((Number(i.value)||0)+1, -100, 100); renderAll();
+  $('#adjPlus')?.addEventListener('click', ()=>{
+    const i=$('#masterAdjPct'); if (!i) return;
+    i.value = clamp((Number(i.value)||0)+1, -100, 100); renderAll();
   });
 
   // Master pass control
@@ -511,7 +501,7 @@ function wireEvents(){
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
-    const btn = e.target.closest('button'); /* accept pill-btns */
+    const btn = e.target.closest('button'); /* accepts pill-btns */
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
       const b = blocks.find(x=>x.id===id); if (!b) return;
