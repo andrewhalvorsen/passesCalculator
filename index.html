@@ -51,7 +51,7 @@
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* SINGLE header pill — solid light grey on pure white (no outer halo) */
+  /* SINGLE header pill — solid light grey on pure white */
   .title{background:#fff;padding:0}
   .toggle-zone{
     margin:12px;
@@ -72,15 +72,17 @@
   .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
 
   /* ------- Customer view ------- */
-  .cust-hide{display:block}
+  .cust-hide{display:block}                             /* things to hide in customer mode */
   body.customer .cust-hide{display:none !important}
   body.customer .blocks{display:none !important}
-  body.customer #addBlockBtn,
-  body.customer #blockCountPill{display:none !important}
+  body.customer #addBlockBtn, body.customer #blockCountPill{display:none !important}
 
-  .col-adj-peracre, .col-hours {display:table-cell}
+  /* Column visibility: in customer mode hide adjusted-per-acre, hours, and adjusted-total columns */
+  .col-adj-peracre, .col-hours, .col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
-  body.customer .col-hours{display:none}
+  body.customer .col-hours,
+  body.customer .col-adj-total{display:none}
+
 </style>
 </head>
 <body>
@@ -104,7 +106,7 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- Hidden in customer view -->
+    <!-- Full-control inputs (unchanged look when not in customer view) -->
     <div class="inputs cust-hide">
       <div class="field">
         <label for="masterMonths">Months (payments for ALL blocks)</label>
@@ -140,7 +142,7 @@
             <th class="col-adj-peracre">Adjusted Cost / Acre</th>
             <th class="col-hours">Hours</th>
             <th>Total Cost</th>
-            <th>Adjusted Total Cost</th>
+            <th class="col-adj-total">Adjusted Total Cost</th>
           </tr>
         </thead>
         <tbody id="masterPassRows"></tbody>
@@ -151,7 +153,7 @@
             <td class="col-adj-peracre"></td>
             <td id="masterHoursCell" class="col-hours" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
-            <td id="masterAdjCell" style="text-align:right">
+            <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
               <div class="adj-inline">
                 <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
                 <div class="adj-controls cust-hide">
@@ -316,6 +318,7 @@ function renderAll(){
     let adjPct= Math.trunc(Number(adjEl.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
     adjPct = clamp(adjPct, -100, 100); if (String(adjPct)!==adjEl.value) adjEl.value = adjPct;
     const adjFactor = 1 + (adjPct/100);
+    const customerMode = document.body.classList.contains('customer');
 
     const masterRows = [];
     let totalActiveAcres = 0, activeBlocks = 0;
@@ -394,6 +397,7 @@ function renderAll(){
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
     $('#masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)}`;
 
+    // build master table
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, masterHours = 0;
     for (let i=0;i<masterRows.length;i++){
@@ -401,34 +405,42 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjFactor = 1 + ((Number($('#masterAdjPct').value)||0)/100);
       const adjPerAcre = round2(perAcre * adjFactor);
       const adjRowTotal= round2(baseRowTotal * adjFactor);
       baseTotal += baseRowTotal; masterHours += hoursPass;
 
       const tr = document.createElement('tr');
+      // In customer mode: Total Cost column shows ADJUSTED; adjusted column is hidden.
+      const displayTotal = customerMode ? adjRowTotal : baseRowTotal;
+
       tr.innerHTML = `
         <td style="text-align:center">Pass ${i+1}</td>
         <td>${fmtUSD(perAcre)}</td>
         <td class="col-adj-peracre">${fmtUSD(adjPerAcre)}</td>
         <td class="col-hours">${hoursPass.toFixed(2)} h</td>
-        <td>${fmtUSD(baseRowTotal)}</td>
-        <td>${fmtUSD(adjRowTotal)}</td>`;
+        <td>${fmtUSD(displayTotal)}</td>
+        <td class="col-adj-total">${fmtUSD(adjRowTotal)}</td>`;
       if (i===0) tr.classList.add('row-hi');
       mBody.appendChild(tr);
     }
     $('#masterPassesCell').textContent = masterRows.length || '—';
     $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
-    $('#masterBaseTotal').textContent  = fmtUSD(round2(baseTotal));
 
+    // totals + payments
     const monthsEl = $('#masterMonths');
     let months = Number(monthsEl.value);
     const maxPass = masterRows.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(months)){ months = maxPass; monthsEl.value = months; }
     months = clamp(Math.trunc(months), 1, 12); if (String(months)!==monthsEl.value) monthsEl.value = months;
 
-    const adjTotal = round2(baseTotal * (1 + (Number($('#masterAdjPct').value)||0)/100));
+    const adjTotal = round2(baseTotal * adjFactor);
+
+    // Footer totals: show adjusted in "Total Cost" cell when in customer mode
+    $('#masterBaseTotal').textContent = fmtUSD(customerMode ? adjTotal : round2(baseTotal));
+
+    // Adjusted pill remains for internal mode; column is hidden in customer mode
     $('#masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
+
     const payments = equalPayments(adjTotal, months);
     $('#masterPaymentPill').textContent = `${months} payments of ${fmtUSD(payments[0]||0)}`;
   }catch(e){
@@ -445,12 +457,11 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   renderAll();
 }
 
-/* ========= Events (robust delegation) ========= */
+/* ========= Events ========= */
 function wireEvents(){
-  // Customer view
+  // Customer view toggle
   $('#customerToggle').addEventListener('change', (e)=>{
     document.body.classList.toggle('customer', e.target.checked);
-    // no render needed here, but safe:
     renderAll();
   });
 
@@ -467,13 +478,10 @@ function wireEvents(){
   });
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
 
-  // Blocks container
+  // Blocks delegation
   const blocksEl = $('#blocks');
-
   blocksEl.addEventListener('click', (e)=>{
-    // Do not collapse when toggling the include switch
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
-
     const btn = e.target.closest('button.btn');
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
@@ -506,8 +514,6 @@ function wireEvents(){
       renderAll();
       return;
     }
-
-    // Toggle collapse when header (not switch) is clicked
     const tz = e.target.closest('.toggle-zone');
     if (tz){
       const id = Number(tz.id.replace('toggle-zone-',''));
@@ -517,18 +523,12 @@ function wireEvents(){
       return;
     }
   });
-
-  blocksEl.addEventListener('input', (e)=>{
-    if (/^(pins-|acres-|floor-|dpp-)/.test(e.target.id)) renderAll();
-  });
-  blocksEl.addEventListener('change', (e)=>{
-    if (/^(pins-|acres-|floor-|dpp-|include-)/.test(e.target.id)) renderAll();
-  });
+  blocksEl.addEventListener('input', (e)=>{ if (/^(pins-|acres-|floor-|dpp-)/.test(e.target.id)) renderAll(); });
+  blocksEl.addEventListener('change', (e)=>{ if (/^(pins-|acres-|floor-|dpp-|include-)/.test(e.target.id)) renderAll(); });
 }
 
 /* ========= Boot ========= */
 (function start(){
-  // Script is at end of body; DOM is ready.
   wireEvents();
   addNewBlock({ pins:400, acres:54, collapsed:false });
 })();
