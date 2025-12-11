@@ -27,14 +27,14 @@
 
   .inputs{padding:8px 12px;background:#fff}
 
-  /* ===== STRICT HORIZONTAL TOP ROW (NO STACKING) ===== */
+  /* STRICT HORIZONTAL TOP ROW */
   .controls-row{
     display:flex;align-items:flex-end;gap:8px;flex-wrap:nowrap;
     overflow-x:auto;white-space:nowrap;padding-bottom:2px
   }
-  .controls-row > *{flex:0 0 auto} /* prevent children from stretching/wrapping */
+  .controls-row > *{flex:0 0 auto}
 
-  /* Master Pass Control group: title above, buttons inline */
+  /* Master Pass Control group */
   .group{display:flex;flex-direction:column;gap:4px;min-width:max-content}
   .group .label{font-size:11px;color:#374151;font-weight:700;letter-spacing:.02em;margin-left:2px}
   .row-controls{display:flex;gap:6px;align-items:center}
@@ -45,7 +45,7 @@
   }
   .pill-btn:active{transform:translateY(1px)}
 
-  /* Compact chips (Months, Min $/acre, $/pin) — each its own sibling to enforce left→right order */
+  /* Compact chips (Months, Min $/acre, $/pin) */
   .chip{
     display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
     padding:4px 8px;font-weight:600;white-space:nowrap
@@ -71,7 +71,7 @@
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
 
-  /* Collapsible header pill — NO BORDER, tight spacing */
+  /* Collapsible header pill — NO BORDER */
   .title{background:#fff;padding:0}
   .toggle-zone{
     margin:4px;
@@ -143,7 +143,6 @@
           </div>
         </div>
 
-        <!-- each chip is a SIBLING to keep left→right order -->
         <div class="chip cust-hide">
           <label for="masterMonths">Months</label>
           <input id="masterMonths" type="number" min="1" max="12" step="1" />
@@ -165,6 +164,7 @@
       <table class="grid">
         <thead>
           <tr>
+            <th style="width:150px">Blocks Contributing</th>
             <th style="width:120px">Pass</th>
             <th>Cost / Acre</th>
             <th class="col-adj-peracre">Adjusted Cost / Acre</th>
@@ -176,6 +176,7 @@
         <tbody id="masterPassRows"></tbody>
         <tfoot>
           <tr>
+            <td id="masterBlocksCell" style="text-align:center" class="muted">—</td>
             <td style="text-align:center"># of Passes</td>
             <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
             <td class="col-adj-peracre"></td>
@@ -343,7 +344,7 @@ function renderAll(){
     const adjFactor = 1 + (adjPct/100);
     const customerMode = document.body.classList.contains('customer');
 
-    const masterRows = [];
+    const masterRows = []; // each index: { total, acres, contrib }
     let totalActiveAcres = 0, activeBlocks = 0;
 
     for (const b of blocks){
@@ -397,9 +398,10 @@ function renderAll(){
 
           if (include){
             const idx = p.number-1;
-            if (!masterRows[idx]) masterRows[idx] = { total:0, acres:0 };
-            masterRows[idx].total += passTotal;
-            masterRows[idx].acres += acres;
+            if (!masterRows[idx]) masterRows[idx] = { total:0, acres:0, contrib:0 };
+            masterRows[idx].total   += passTotal;
+            masterRows[idx].acres   += acres;
+            masterRows[idx].contrib += 1; // this block contributes to this pass index
           }
         }
         $(`#passesCell-${b.id}`).textContent = q.passCount;
@@ -429,9 +431,12 @@ function renderAll(){
       baseTotal += baseRowTotal; masterHours += hoursPass;
 
       const displayTotal = customerMode ? adjRowTotal : baseRowTotal;
+      const contrib = row.contrib || 0;
+      const contribText = `${contrib}/${activeBlocks}`;
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
+        <td style="text-align:center">${contribText}</td>
         <td style="text-align:center">Pass ${i+1}</td>
         <td>${fmtUSD(perAcre)}</td>
         <td class="col-adj-peracre">${fmtUSD(adjPerAcre)}</td>
@@ -443,6 +448,7 @@ function renderAll(){
     }
     $('#masterPassesCell').textContent = masterRows.length || '—';
     $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
+    $('#masterBlocksCell').textContent = `${activeBlocks}/${blocks.length}`;
 
     // Months & payments
     const monthsEl = $('#masterMonths');
