@@ -15,7 +15,7 @@
   /* Top bar */
   .bar{background:#d9d9d9;padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444;
        display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .bar .left{display:flex;align-items:center;gap:12px}
+  .bar .left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 
   /* Compact pills */
@@ -33,7 +33,7 @@
 
   /* Master summary */
   .card{border-top:1px solid var(--border)}
-  .header{background:var(--yellow);padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
+  .header{background:#fff36a;padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
   .header h1{margin:0;font-size:28px;font-weight:800}
   .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
           gap:16px;padding:12px 16px;background:#fff}
@@ -82,7 +82,7 @@
   .cust-hide{display:block}
   body.customer .cust-hide{display:none !important}
   body.customer .blocks{display:none !important}
-  body.customer #addBlockBtn, body.customer #blockCountPill{display:none !important}
+  body.customer #blockCountPill, body.customer #addBlockBtn{display:none !important}
 
   /* Hide adjusted-per-acre, hours, and adjusted-total in customer mode */
   .col-adj-peracre, .col-hours, .col-adj-total{display:table-cell}
@@ -96,15 +96,9 @@
   <div class="bar">
     <div class="left">
       <div>NAME</div>
-      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
-        <input type="checkbox" id="customerToggle" />
-        <span>Customer view</span>
-      </label>
-    </div>
 
-    <div class="right">
-      <!-- compact pills (hide in customer mode) -->
-      <div class="chips cust-hide">
+      <!-- compact pills back in the LEFT group -->
+      <div class="chips cust-hide" id="chipGroup">
         <div class="chip">
           <label for="masterMonths">Months</label>
           <input id="masterMonths" type="number" min="1" max="12" step="1" />
@@ -119,6 +113,13 @@
         </div>
       </div>
 
+      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="customerToggle" />
+        <span>Customer view</span>
+      </label>
+    </div>
+
+    <div class="right">
       <span class="pill inline" id="blockCountPill">Blocks: 0 (active 0)</span>
       <button class="btn" id="addBlockBtn" type="button">+ Add Block</button>
     </div>
@@ -360,7 +361,7 @@ function renderAll(){
 
         const base = calcBase(pins, acres, effDpp);
         let passCount = base.autoCount + (b.addedPasses||0) - (b.removedPasses||0);
-        passCount = clamp(passCount, 1, 8);
+        passCount = Math.min(8, Math.max(1, passCount));
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp);
 
@@ -415,11 +416,10 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjPerAcre = round2(perAcre * (1 + ((Number($('#masterAdjPct').value)||0)/100)));
-      const adjRowTotal= round2(baseRowTotal * (1 + ((Number($('#masterAdjPct').value)||0)/100)));
+      const adjRowTotal= round2(baseRowTotal * adjFactor);
+      const adjPerAcre = round2(perAcre * adjFactor);
       baseTotal += baseRowTotal; masterHours += hoursPass;
 
-      const customerMode = document.body.classList.contains('customer');
       const displayTotal = customerMode ? adjRowTotal : baseRowTotal;
 
       const tr = document.createElement('tr');
@@ -436,16 +436,15 @@ function renderAll(){
     $('#masterPassesCell').textContent = masterRows.length || '—';
     $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
 
-    // Months auto/default and payments
+    // Months & payments
     const monthsEl = $('#masterMonths');
     let months = Number(monthsEl.value);
     const maxPass = masterRows.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(months)){ months = maxPass; monthsEl.value = months; }
     months = clamp(Math.trunc(months), 1, 12); if (String(months)!==monthsEl.value) monthsEl.value = months;
 
-    const adjTotal = round2(baseTotal * (1 + ((Number($('#masterAdjPct').value)||0)/100)));
-    // Footer total: adjusted when in customer mode, base when internal
-    $('#masterBaseTotal').textContent = fmtUSD(document.body.classList.contains('customer') ? adjTotal : round2(baseTotal));
+    const adjTotal = round2(baseTotal * adjFactor);
+    $('#masterBaseTotal').textContent = fmtUSD(customerMode ? adjTotal : round2(baseTotal));
     $('#masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
 
     const payments = equalPayments(adjTotal, months);
@@ -459,6 +458,7 @@ function renderAll(){
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
   const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed };
+  blocks.push(b); /* <<—— FIX: actually add to state so renderAll sees it */
   $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
   renderAll();
 }
