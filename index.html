@@ -15,6 +15,7 @@
   /* Top bar */
   .bar{background:#d9d9d9;padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444;
        display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .bar .left{display:flex;align-items:center;gap:12px}
   .bar .right{display:flex;align-items:center;gap:8px}
   .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
   .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -50,17 +51,15 @@
   .collapsed .block-body{display:none}
   .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* SINGLE header pill — solid light grey on pure white, no “outer pill”, no focus halo */
-  .title{background:#fff;padding:0} /* pure white behind; removes any surrounding shape */
+  /* SINGLE header pill — solid light grey on white (no outer pill) */
+  .title{background:#fff;padding:0}
   .toggle-zone{
-    margin:12px;                          /* breathing room from block edges */
+    margin:12px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
-    background:#f3f4f6;                   /* solid light grey pill */
-    border:none; border-radius:9999px; padding:12px 16px;
-    cursor:pointer; outline:none; color:#111827;
-    box-shadow:none;                       /* no halo */
+    background:#f3f4f6; border:none; border-radius:9999px; padding:12px 16px;
+    cursor:pointer; outline:none; color:#111827; box-shadow:none;
   }
-  .toggle-zone:focus{outline:none; box-shadow:none}  /* remove “second pill” look */
+  .toggle-zone:focus{outline:none; box-shadow:none}
   .tz-left{display:flex;align-items:center;gap:10px;font-weight:700}
   .tz-right{display:flex;align-items:center;gap:14px}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
@@ -71,12 +70,32 @@
   .adj-controls input{max-width:110px}
 
   .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
+
+  /* ------- Customer view ------- */
+  .cust-hide{display:block}
+  body.customer .cust-hide{display:none !important}        /* hide controls in customer mode */
+  body.customer .blocks{display:none !important}           /* hide individual blocks */
+  body.customer #addBlockBtn,
+  body.customer #blockCountPill{display:none !important}   /* hide add block + count */
+
+  /* Hide columns in master table: adjusted $/acre + hours */
+  .col-adj-peracre, .col-hours {display:table-cell}
+  body.customer .col-adj-peracre,
+  body.customer .col-hours{display:none}
+
+  /* Keep the adjusted total pill + payment plan visible */
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="bar">
-    <div>NAME</div>
+    <div class="left">
+      <div>NAME</div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="customerToggle" />
+        <span>Customer view</span>
+      </label>
+    </div>
     <div class="right">
       <span class="pill inline" id="blockCountPill">Blocks: 0 (active 0)</span>
       <button class="btn" id="addBlockBtn" type="button">+ Add Block</button>
@@ -88,7 +107,8 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <div class="inputs">
+    <!-- Controls hidden in customer view -->
+    <div class="inputs cust-hide">
       <div class="field">
         <label for="masterMonths">Months (payments for ALL blocks)</label>
         <input id="masterMonths" type="number" min="1" max="12" step="1" />
@@ -120,8 +140,8 @@
           <tr>
             <th style="width:120px">Pass</th>
             <th>Cost / Acre</th>
-            <th>Adjusted Cost / Acre</th>
-            <th>Hours</th>
+            <th class="col-adj-peracre">Adjusted Cost / Acre</th>
+            <th class="col-hours">Hours</th>
             <th>Total Cost</th>
             <th>Adjusted Total Cost</th>
           </tr>
@@ -131,13 +151,13 @@
           <tr>
             <td style="text-align:center"># of Passes</td>
             <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
-            <td></td>
-            <td id="masterHoursCell" style="text-align:right">— h</td>
+            <td class="col-adj-peracre"></td>
+            <td id="masterHoursCell" class="col-hours" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
             <td id="masterAdjCell" style="text-align:right">
               <div class="adj-inline">
                 <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
-                <div class="adj-controls">
+                <div class="adj-controls cust-hide">
                   <button class="btn" id="adjMinus" type="button">−1%</button>
                   <input id="masterAdjPct" type="number" step="1" min="-100" max="100" value="0" />
                   <button class="btn" id="adjPlus" type="button">+1%</button>
@@ -155,7 +175,7 @@
     </div>
   </div>
 
-  <!-- BLOCKS -->
+  <!-- BLOCKS (hidden in customer view) -->
   <div class="blocks" id="blocks"></div>
 </div>
 
@@ -209,7 +229,6 @@ function blockHTML(b){
   return `
   <div class="block${b.collapsed?' collapsed':''}" data-block-id="${b.id}">
     <div class="title">
-      <!-- single, solid grey pill; nothing surrounds it -->
       <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
         <div class="tz-left">
           <span>Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
@@ -379,12 +398,12 @@ function renderAll(){
 
     const mBody = document.getElementById('masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, masterHours = 0;
+    const adjFactor = 1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100);
     for (let i=0;i<masterRows.length;i++){
       const row = masterRows[i]; if (!row) continue;
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjFactor = 1 + ((Number(document.getElementById('masterAdjPct').value)||0)/100);
       const adjPerAcre = round2(perAcre * adjFactor);
       const adjRowTotal= round2(baseRowTotal * adjFactor);
       baseTotal += baseRowTotal; masterHours += hoursPass;
@@ -393,8 +412,8 @@ function renderAll(){
       tr.innerHTML = `
         <td style="text-align:center">Pass ${i+1}</td>
         <td>${fmtUSD(perAcre)}</td>
-        <td>${fmtUSD(adjPerAcre)}</td>
-        <td>${hoursPass.toFixed(2)} h</td>
+        <td class="col-adj-peracre">${fmtUSD(adjPerAcre)}</td>
+        <td class="col-hours">${hoursPass.toFixed(2)} h</td>
         <td>${fmtUSD(baseRowTotal)}</td>
         <td>${fmtUSD(adjRowTotal)}</td>`;
       if (i===0) tr.classList.add('row-hi');
@@ -410,7 +429,7 @@ function renderAll(){
     if (!masterMonthsTouched || !Number.isFinite(months)){ months = maxPass; monthsEl.value = months; }
     months = clamp(Math.trunc(months), 1, 12); if (String(months)!==monthsEl.value) monthsEl.value = months;
 
-    const adjTotal = round2(baseTotal * (1 + (Number(document.getElementById('masterAdjPct').value)||0)/100));
+    const adjTotal = round2(baseTotal * adjFactor);
     document.getElementById('masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
     const payments = equalPayments(adjTotal, months);
     document.getElementById('masterPaymentPill').textContent = `${months} payments of ${fmtUSD(payments[0]||0)}`;
@@ -428,9 +447,15 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   renderAll();
 }
 
-/* ========= Event delegation ========= */
+/* ========= Events ========= */
 function wireEvents(){
-  // Global
+  // Customer view toggle
+  document.getElementById('customerToggle').addEventListener('change', (e)=>{
+    document.body.classList.toggle('customer', e.target.checked);
+    renderAll();
+  });
+
+  // Global controls
   document.getElementById('addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
   document.getElementById('masterFloor').addEventListener('input', renderAll);
   document.getElementById('masterDpp').addEventListener('input', renderAll);
@@ -443,16 +468,12 @@ function wireEvents(){
   });
   document.getElementById('masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
 
-  // Blocks (delegate)
+  // Blocks — event delegation
   const blocksEl = document.getElementById('blocks');
-
   blocksEl.addEventListener('click', (e)=>{
-    // If click is on the INCLUDE switch area, don't toggle collapse
-    if (e.target.closest('.switch')) {
-      setTimeout(renderAll, 0);
-      return;
-    }
-    // Per-block add/remove
+    // Don't collapse when toggling include switch
+    if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
+
     const btn = e.target.closest('button.btn');
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
@@ -485,7 +506,6 @@ function wireEvents(){
       renderAll();
       return;
     }
-    // Toggle collapse when header (not switch) is clicked
     const tz = e.target.closest('.toggle-zone');
     if (tz){
       const id = Number(tz.id.replace('toggle-zone-',''));
