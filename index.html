@@ -15,10 +15,8 @@
   /* Top bar */
   .bar{background:#d9d9d9;padding:8px 16px;font-weight:700;letter-spacing:.08em;color:#444;
        display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .bar .left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .bar .left,.bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
   .pill.inline{padding:6px 10px}
 
@@ -28,26 +26,31 @@
   .header h1{margin:0;font-size:28px;font-weight:800}
 
   .inputs{padding:12px 16px;background:#fff}
-  .controls-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:nowrap;overflow-x:auto}
+  /* Horizontal row: left (master pass control) -> right (months, min, dpp) */
+  .controls-row{
+    display:flex;align-items:flex-end;gap:12px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px
+  }
 
-  /* Pills */
-  .chips{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
-  .chip{display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
-        padding:6px 10px;font-weight:600;white-space:nowrap}
-  .chip label{font-size:12px;color:#374151}
-  .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
-  .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-
-  /* Pass pills + title */
+  /* Master Pass Control: title above the two pills */
   .group{display:flex;flex-direction:column;gap:6px}
   .group .label{font-size:12px;color:#374151;font-weight:700;letter-spacing:.02em}
+  .row-controls{display:flex;gap:8px;align-items:center}
   .pill-btn{
     display:inline-flex;align-items:center;gap:8px;
     background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
-    padding:8px 14px;font-weight:700;color:#111827;white-space:nowrap;cursor:pointer;
+    padding:8px 14px;font-weight:700;color:#111827;white-space:nowrap;cursor:pointer
   }
   .pill-btn:active{transform:translateY(1px)}
-  .row-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+  /* Compact chips (months, min, dpp) */
+  .chips{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+  .chip{
+    display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
+    padding:6px 10px;font-weight:600;white-space:nowrap
+  }
+  .chip label{font-size:12px;color:#374151}
+  .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
+  .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 
   .muted{color:#6b7280}
 
@@ -60,33 +63,39 @@
   .row-hi{background:var(--yellow)}
   .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:10px;display:none;margin:0 16px 12px}
 
-  /* Blocks */
-  .blocks{padding:0 16px 24px}
-  .block{border:none;border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
+  /* Blocks container + tighter spacing between blocks */
+  .blocks{padding:0 16px 16px}
+  .block{border:none;border-radius:12px;margin:8px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
 
-  /* Collapsible header pill — NO BORDER */
+  /* Collapsible header pill — NO BORDER + tighter margins/padding */
   .title{background:#fff;padding:0}
   .toggle-zone{
-    margin:12px;
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
-    background:#f3f4f6;border:none;border-radius:9999px;padding:12px 16px;
-    cursor:pointer;outline:none;color:#111827;box-shadow:none;-webkit-tap-highlight-color:transparent;
+    margin:8px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:#f3f4f6;border:none;border-radius:9999px;padding:10px 14px;
+    cursor:pointer;outline:none;color:#111827;box-shadow:none;-webkit-tap-highlight-color:transparent
   }
   .toggle-zone:focus{outline:none;box-shadow:none}
-
   .tz-left{display:flex;align-items:center;gap:10px;font-weight:700}
-  .tz-right{display:flex;align-items:center;gap:14px}
+  .tz-right{display:flex;align-items:center;gap:12px}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .switch input{transform:scale(1.1)}
 
-  .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
+  /* Block chips row (also tighter) */
+  .block .inputs{padding:8px 12px}
+  .block .controls-row{gap:8px}
+  .block .chips{gap:6px}
+  .block .chip{padding:6px 8px}
+  .block .row-controls{gap:6px}
+
+  .foot{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:2px solid var(--border);background:#fff}
 
   /* Customer view */
   .cust-hide{display:block}
   body.customer .cust-hide{display:none !important}
-  body.customer .blocks{display:none !important}
+  body.customer .blocks{display:none !重要}
   .col-adj-peracre, .col-hours, .col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
   body.customer .col-hours,
@@ -119,9 +128,10 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
+    <!-- Left: Master Pass Control; Right: Months, Min, $/pin (chips) -->
     <div class="inputs">
       <div class="controls-row">
-        <div class="group cust-hide">
+        <div class="group cust-hide" style="min-width:max-content">
           <div class="label">Master Pass Control</div>
           <div class="row-controls">
             <button class="pill-btn" id="masterRemovePass" type="button">− Pass All</button>
@@ -129,7 +139,7 @@
           </div>
         </div>
 
-        <div class="chips cust-hide">
+        <div class="chips cust-hide" style="margin-left:6px">
           <div class="chip">
             <label for="masterMonths">Months</label>
             <input id="masterMonths" type="number" min="1" max="12" step="1" />
@@ -262,7 +272,7 @@ function blockHTML(b){
     <div class="block-body">
       <div id="err-${b.id}" class="notice"></div>
 
-      <!-- chips row inside the block -->
+      <!-- tighter chips row inside the block -->
       <div class="inputs">
         <div class="controls-row">
           <div class="chips">
@@ -291,13 +301,13 @@ function blockHTML(b){
         </div>
       </div>
 
-      <div style="padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap">
+      <div style="padding:8px 12px;display:flex;gap:8px;flex-wrap:wrap">
         <span class="pill inline" id="base-${b.id}">Base: $— / acre</span>
         <span class="pill inline" id="passcount-${b.id}">Passes: —</span>
         <span class="pill inline" id="total-${b.id}">Whole-field total: $—</span>
       </div>
 
-      <div style="padding:0 16px 0">
+      <div style="padding:0 12px 0">
         <table class="grid">
           <thead>
             <tr>
@@ -462,7 +472,6 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
 
 /* ========= Events ========= */
 function wireEvents(){
-  // Customer view toggle
   $('#customerToggle').addEventListener('change', (e)=>{
     document.body.classList.toggle('customer', e.target.checked);
     renderAll();
@@ -501,7 +510,7 @@ function wireEvents(){
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
-    const btn = e.target.closest('button'); /* accepts pill-btns */
+    const btn = e.target.closest('button'); /* pill-btns are buttons */
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
       const b = blocks.find(x=>x.id===id); if (!b) return;
@@ -513,8 +522,7 @@ function wireEvents(){
       const base  = calcBase(pins, Math.max(0.01, acres), effDpp);
       const eff   = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
       if (eff < 8) b.addedPasses = (b.addedPasses||0)+1;
-      renderAll();
-      return;
+      renderAll(); return;
     }
     if (btn && btn.id.startsWith('removePass-')){
       const id = Number(btn.id.replace('removePass-',''));
@@ -530,8 +538,7 @@ function wireEvents(){
         if ((b.addedPasses||0)>0) b.addedPasses -= 1;
         else b.removedPasses = (b.removedPasses||0) + 1;
       }
-      renderAll();
-      return;
+      renderAll(); return;
     }
     const tz = e.target.closest('.toggle-zone');
     if (tz){
