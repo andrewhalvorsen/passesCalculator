@@ -27,14 +27,14 @@
   .header{background:#fff36a;padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
   .header h1{margin:0;font-size:28px;font-weight:800}
   .inputs{padding:12px 16px;background:#fff}
-  .controls-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .controls-row{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;overflow-x:auto}
   .row-controls{display:flex;gap:8px;align-items:center}
   .muted{color:#6b7280}
 
-  /* Compact chips (now NEXT TO Master Pass Control) */
-  .chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  /* Compact chips (inline with Master Pass Control) */
+  .chips{display:flex;align-items:center;gap:8px}
   .chip{display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
-        padding:6px 10px;font-weight:600}
+        padding:6px 10px;font-weight:600;white-space:nowrap}
   .chip label{font-size:12px;color:#374151}
   .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
   .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
@@ -74,12 +74,16 @@
   .cust-hide{display:block}
   body.customer .cust-hide{display:none !important}
   body.customer .blocks{display:none !important}
-  /* In customer view we still show the Add Block button so you can add while showing the summary */
   /* Hide adjusted-per-acre, hours, and adjusted-total in customer mode */
   .col-adj-peracre, .col-hours, .col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
   body.customer .col-hours,
   body.customer .col-adj-total{display:none}
+
+  /* Adjust controls next to Adjusted Total */
+  .adj-row{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .adj-controls{display:flex;align-items:center;gap:8px}
+  .adj-controls input{width:70px}
 </style>
 </head>
 <body>
@@ -103,7 +107,7 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- Exactly like before: Master Pass Control with the trio of compact chips right next to it -->
+    <!-- Everything inline: Master Pass Control + Months + Min + $/pin -->
     <div class="inputs">
       <div class="controls-row">
         <div class="row-controls cust-hide">
@@ -124,12 +128,6 @@
           <div class="chip">
             <label for="masterDpp">$ / pin</label>
             <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
-          </div>
-          <div class="chips" style="margin-left:8px">
-            <span class="muted">Adjust:</span>
-            <button class="btn cust-hide" id="adjMinus" type="button">−1%</button>
-            <input id="masterAdjPct" class="cust-hide" type="number" step="1" min="-100" max="100" value="0" style="width:70px" />
-            <button class="btn cust-hide" id="adjPlus" type="button">+1%</button>
           </div>
         </div>
       </div>
@@ -158,7 +156,14 @@
             <td id="masterHoursCell" class="col-hours" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
             <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
-              <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
+              <div class="adj-row">
+                <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
+                <div class="adj-controls cust-hide">
+                  <button class="btn" id="adjMinus" type="button">−1%</button>
+                  <input id="masterAdjPct" type="number" step="1" min="-100" max="100" value="0" />
+                  <button class="btn" id="adjPlus" type="button">+1%</button>
+                </div>
+              </div>
             </td>
           </tr>
         </tfoot>
@@ -356,27 +361,27 @@ function renderAll(){
           const hours     = round2(passTotal / 180);
           blockHours += hours;
 
-          const tr = document.createElement('tr');
-          if (p.number===1) tr.classList.add('row-hi');
-          tr.innerHTML = `
-            <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
-            <td>${fmtUSD(round2(p.perAcre))}</td>
-            <td>${hours.toFixed(2)} h</td>
-            <td>${fmtUSD(passTotal)}</td>`;
-          tbody.appendChild(tr);
+        const tr = document.createElement('tr');
+        if (p.number===1) tr.classList.add('row-hi');
+        tr.innerHTML = `
+          <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
+          <td>${fmtUSD(round2(p.perAcre))}</td>
+          <td>${hours.toFixed(2)} h</td>
+          <td>${fmtUSD(passTotal)}</td>`;
+        tbody.appendChild(tr);
 
-          if (include){
-            const idx = p.number-1;
-            if (!masterRows[idx]) masterRows[idx] = { total:0, acres:0 };
-            masterRows[idx].total += passTotal;
-            masterRows[idx].acres += acres;
-          }
+        if (include){
+          const idx = p.number-1;
+          if (!masterRows[idx]) masterRows[idx] = { total:0, acres:0 };
+          masterRows[idx].total += passTotal;
+          masterRows[idx].acres += acres;
         }
-        $(`#passesCell-${b.id}`).textContent = q.passCount;
-        $(`#hoursCell-${b.id}`).textContent  = `${blockHours.toFixed(2)} h`;
-        $(`#grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
+      }
+      $(`#passesCell-${b.id}`).textContent = q.passCount;
+      $(`#hoursCell-${b.id}`).textContent  = `${blockHours.toFixed(2)} h`;
+      $(`#grandCell-${b.id}`).textContent  = fmtUSD(q.fieldTotal);
 
-        if (include){ totalActiveAcres += acres; activeBlocks++; }
+      if (include){ totalActiveAcres += acres; activeBlocks++; }
       }catch(inner){
         if (err){ err.style.display='block'; err.textContent = inner.message; }
         console.error(inner);
@@ -436,9 +441,9 @@ function renderAll(){
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
   const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed };
-  blocks.push(b);                        // ensure state updated
-  $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b)); // inject DOM
-  renderAll();                           // recalc + render
+  blocks.push(b);
+  $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
+  renderAll();
 }
 
 /* ========= Events ========= */
@@ -449,10 +454,12 @@ function wireEvents(){
     renderAll();
   });
 
-  // Compact chips and adjustments
+  // Chips & inputs
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
+
+  // Adjust %
   $('#masterAdjPct').addEventListener('input', renderAll);
   $('#adjMinus').addEventListener('click', ()=>{
     const i=$('#masterAdjPct'); i.value = clamp((Number(i.value)||0)-1, -100, 100); renderAll();
