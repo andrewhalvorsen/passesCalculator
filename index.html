@@ -17,15 +17,6 @@
        display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .bar .left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-
-  /* Compact pills */
-  .chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .chip{display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
-        padding:6px 10px;font-weight:600}
-  .chip label{font-size:12px;color:#374151}
-  .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
-  .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-
   .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
@@ -35,12 +26,18 @@
   .card{border-top:1px solid var(--border)}
   .header{background:#fff36a;padding:18px 16px;text-align:center;border-bottom:2px solid var(--border)}
   .header h1{margin:0;font-size:28px;font-weight:800}
-  .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-          gap:16px;padding:12px 16px;background:#fff}
-  .field{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:12px 14px}
-  .field label{display:block;font-size:12px;color:#6b7280;letter-spacing:.04em;margin-bottom:6px}
-  .hint{font-size:11px;color:#6b7280;margin-top:6px}
+  .inputs{padding:12px 16px;background:#fff}
+  .controls-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .row-controls{display:flex;gap:8px;align-items:center}
   .muted{color:#6b7280}
+
+  /* Compact chips (now NEXT TO Master Pass Control) */
+  .chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .chip{display:flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
+        padding:6px 10px;font-weight:600}
+  .chip label{font-size:12px;color:#374151}
+  .chip input{width:86px;font-size:14px;padding:4px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
+  .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 
   /* Tables */
   .grid{width:100%;border-collapse:collapse;margin:8px 0 16px}
@@ -56,9 +53,8 @@
   .block{border:1px solid var(--border);border-radius:12px;margin:16px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
-  .row-controls{display:flex;gap:8px;align-items:center}
 
-  /* SINGLE header pill — solid light grey on white */
+  /* Single header pill — solid light grey on white */
   .title{background:#fff;padding:0}
   .toggle-zone{
     margin:12px;
@@ -72,18 +68,13 @@
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .switch input{transform:scale(1.1)}
 
-  .adj-inline{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-  .adj-controls{display:flex;align-items:center;gap:8px}
-  .adj-controls input{max-width:110px}
-
   .foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:2px solid var(--border);background:#fff}
 
-  /* ------- Customer view ------- */
+  /* Customer view */
   .cust-hide{display:block}
   body.customer .cust-hide{display:none !important}
   body.customer .blocks{display:none !important}
-  body.customer #blockCountPill, body.customer #addBlockBtn{display:none !important}
-
+  /* In customer view we still show the Add Block button so you can add while showing the summary */
   /* Hide adjusted-per-acre, hours, and adjusted-total in customer mode */
   .col-adj-peracre, .col-hours, .col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
@@ -96,29 +87,11 @@
   <div class="bar">
     <div class="left">
       <div>NAME</div>
-
-      <!-- compact pills back in the LEFT group -->
-      <div class="chips cust-hide" id="chipGroup">
-        <div class="chip">
-          <label for="masterMonths">Months</label>
-          <input id="masterMonths" type="number" min="1" max="12" step="1" />
-        </div>
-        <div class="chip">
-          <label for="masterFloor">Min $/acre</label>
-          <input id="masterFloor" type="number" min="0" step="0.01" value="20" />
-        </div>
-        <div class="chip">
-          <label for="masterDpp">$ / pin</label>
-          <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
-        </div>
-      </div>
-
       <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
         <input type="checkbox" id="customerToggle" />
         <span>Customer view</span>
       </label>
     </div>
-
     <div class="right">
       <span class="pill inline" id="blockCountPill">Blocks: 0 (active 0)</span>
       <button class="btn" id="addBlockBtn" type="button">+ Add Block</button>
@@ -130,15 +103,35 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- Only keep Master Pass Control here to save space -->
+    <!-- Exactly like before: Master Pass Control with the trio of compact chips right next to it -->
     <div class="inputs">
-      <div class="field cust-hide">
-        <label>Master Pass Control</label>
-        <div class="row-controls">
+      <div class="controls-row">
+        <div class="row-controls cust-hide">
           <button class="btn" id="masterRemovePass" type="button">− Pass All</button>
           <button class="btn" id="masterAddPass" type="button">+ Pass All</button>
+          <span class="muted">Min 1 · Max 8</span>
         </div>
-        <div class="hint">Min 1, Max 8 passes per block.</div>
+
+        <div class="chips cust-hide">
+          <div class="chip">
+            <label for="masterMonths">Months</label>
+            <input id="masterMonths" type="number" min="1" max="12" step="1" />
+          </div>
+          <div class="chip">
+            <label for="masterFloor">Min $/acre</label>
+            <input id="masterFloor" type="number" min="0" step="0.01" value="20" />
+          </div>
+          <div class="chip">
+            <label for="masterDpp">$ / pin</label>
+            <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
+          </div>
+          <div class="chips" style="margin-left:8px">
+            <span class="muted">Adjust:</span>
+            <button class="btn cust-hide" id="adjMinus" type="button">−1%</button>
+            <input id="masterAdjPct" class="cust-hide" type="number" step="1" min="-100" max="100" value="0" style="width:70px" />
+            <button class="btn cust-hide" id="adjPlus" type="button">+1%</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -165,14 +158,7 @@
             <td id="masterHoursCell" class="col-hours" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
             <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
-              <div class="adj-inline">
-                <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
-                <div class="adj-controls cust-hide">
-                  <button class="btn" id="adjMinus" type="button">−1%</button>
-                  <input id="masterAdjPct" type="number" step="1" min="-100" max="100" value="0" />
-                  <button class="btn" id="adjPlus" type="button">+1%</button>
-                </div>
-              </div>
+              <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
             </td>
           </tr>
         </tfoot>
@@ -192,7 +178,7 @@
 <script>
 "use strict";
 
-/* ========= Small helpers ========= */
+/* ========= Helpers ========= */
 const $ = sel => document.querySelector(sel);
 const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n||0);
 const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100;
@@ -257,7 +243,7 @@ function blockHTML(b){
     <div class="block-body">
       <div id="err-${b.id}" class="notice"></div>
 
-      <div class="inputs">
+      <div class="inputs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
         <div class="field">
           <label for="pins-${b.id}">Pin Count (whole number)</label>
           <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}" />
@@ -269,12 +255,12 @@ function blockHTML(b){
         <div class="field">
           <label for="floor-${b.id}">Min $/acre (optional override)</label>
           <input id="floor-${b.id}" type="number" min="0" step="0.01" placeholder="">
-          <div class="hint">Leave blank to use master floor.</div>
+          <div class="muted" style="font-size:11px;margin-top:6px">Leave blank to use master.</div>
         </div>
         <div class="field">
           <label for="dpp-${b.id}">$ per pin (optional override)</label>
           <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
-          <div class="hint">Leave blank to use master $/pin.</div>
+          <div class="muted" style="font-size:11px;margin-top:6px">Leave blank to use master.</div>
         </div>
         <div class="field">
           <label>Passes (add/remove)</label>
@@ -282,7 +268,7 @@ function blockHTML(b){
             <button class="btn" id="removePass-${b.id}" type="button">− Remove 1 Pass</button>
             <button class="btn" id="addPass-${b.id}" type="button">+ Add 1 Pass</button>
           </div>
-          <div class="hint">Min 1, max 8.</div>
+          <div class="muted" style="font-size:11px;margin-top:6px">Min 1, max 8.</div>
         </div>
       </div>
 
@@ -320,14 +306,10 @@ function blockHTML(b){
 /* ========= Rendering ========= */
 function renderAll(){
   try{
-    const floorEl = $('#masterFloor');
-    const dppEl   = $('#masterDpp');
-    const adjEl   = $('#masterAdjPct');
-
-    let floor = round2(Number(floorEl.value)); if (!Number.isFinite(floor) || floor<0) floor = 20;
-    let dpp   = round2(Number(dppEl.value));   if (!Number.isFinite(dpp)   || dpp<0)   dpp   = 20;
-    let adjPct= Math.trunc(Number(adjEl.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
-    adjPct = clamp(adjPct, -100, 100); if (String(adjPct)!==adjEl.value) adjEl.value = adjPct;
+    const floor = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterFloor').value));
+    const dpp   = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterDpp').value));
+    let adjPct  = Math.trunc(Number($('#masterAdjPct').value)); if (!Number.isFinite(adjPct)) adjPct = 0;
+    adjPct = clamp(adjPct,-100,100); if (String(adjPct)!==$('#masterAdjPct').value) $('#masterAdjPct').value = adjPct;
     const adjFactor = 1 + (adjPct/100);
     const customerMode = document.body.classList.contains('customer');
 
@@ -346,22 +328,18 @@ function renderAll(){
         const pins  = Math.trunc(Number($(`#pins-${b.id}`).value));
         const acres = Number($(`#acres-${b.id}`).value);
 
-        const floorIn = $(`#floor-${b.id}`);
-        const dppIn   = $(`#dpp-${b.id}`);
+        const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
+        const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0) ? round2(Number(floorIn.value)) : floor;
+        const effDpp   = (dppIn.value!=='' && Number.isFinite(Number(dppIn.value))   && Number(dppIn.value)  >=0) ? round2(Number(dppIn.value))   : dpp;
 
-        let effFloor = floor;
-        if (floorIn.value !== '') { let v = Number(floorIn.value); if (Number.isFinite(v) && v>=0) effFloor = round2(v); }
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
+        $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
         floorIn.placeholder = String(floor);
-
-        let effDpp = dpp;
-        if (dppIn.value !== '') { let w = Number(dppIn.value); if (Number.isFinite(w) && w>=0) effDpp = round2(w); }
-        $(`#effectiveDpp-${b.id}`).textContent = `$/pin: ${fmtUSD(effDpp)}`;
-        dppIn.placeholder = String(dpp);
+        dppIn.placeholder   = String(dpp);
 
         const base = calcBase(pins, acres, effDpp);
         let passCount = base.autoCount + (b.addedPasses||0) - (b.removedPasses||0);
-        passCount = Math.min(8, Math.max(1, passCount));
+        passCount = clamp(passCount,1,8);
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp);
 
@@ -408,7 +386,7 @@ function renderAll(){
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
     $('#masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)}`;
 
-    // Build master table
+    // Master table
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, masterHours = 0;
     for (let i=0;i<masterRows.length;i++){
@@ -416,8 +394,8 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjRowTotal= round2(baseRowTotal * adjFactor);
       const adjPerAcre = round2(perAcre * adjFactor);
+      const adjRowTotal= round2(baseRowTotal * adjFactor);
       baseTotal += baseRowTotal; masterHours += hoursPass;
 
       const displayTotal = customerMode ? adjRowTotal : baseRowTotal;
@@ -458,9 +436,9 @@ function renderAll(){
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
   const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed };
-  blocks.push(b); /* <<—— FIX: actually add to state so renderAll sees it */
-  $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
-  renderAll();
+  blocks.push(b);                        // ensure state updated
+  $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b)); // inject DOM
+  renderAll();                           // recalc + render
 }
 
 /* ========= Events ========= */
@@ -471,12 +449,10 @@ function wireEvents(){
     renderAll();
   });
 
-  // Compact pills
+  // Compact chips and adjustments
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
-
-  // Adjust %
   $('#masterAdjPct').addEventListener('input', renderAll);
   $('#adjMinus').addEventListener('click', ()=>{
     const i=$('#masterAdjPct'); i.value = clamp((Number(i.value)||0)-1, -100, 100); renderAll();
@@ -495,6 +471,9 @@ function wireEvents(){
     renderAll();
   });
 
+  // Add block
+  $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
+
   // Blocks delegation
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
@@ -502,28 +481,28 @@ function wireEvents(){
     const btn = e.target.closest('button.btn');
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
-      const b = blocks.find(x=>x.id===id);
+      const b = blocks.find(x=>x.id===id); if (!b) return;
       const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
       const acres = Number($(`#acres-${id}`).value||0);
       const dppIn = $(`#dpp-${id}`).value;
       const mdpp  = Number($('#masterDpp').value||20);
       const effDpp= (dppIn!=='' && Number.isFinite(Number(dppIn))) ? Number(dppIn) : mdpp;
       const base  = calcBase(pins, Math.max(0.01, acres), effDpp);
-      const eff   = Math.min(8, Math.max(1, base.autoCount + (b.addedPasses||0) - (b.removedPasses||0)));
+      const eff   = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
       if (eff < 8) b.addedPasses = (b.addedPasses||0)+1;
       renderAll();
       return;
     }
     if (btn && btn.id.startsWith('removePass-')){
       const id = Number(btn.id.replace('removePass-',''));
-      const b = blocks.find(x=>x.id===id);
+      const b = blocks.find(x=>x.id===id); if (!b) return;
       const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
       const acres = Number($(`#acres-${id}`).value||0);
       const dppIn = $(`#dpp-${id}`).value;
       const mdpp  = Number($('#masterDpp').value||20);
       const effDpp= (dppIn!=='' && Number.isFinite(Number(dppIn))) ? Number(dppIn) : mdpp;
       const base  = calcBase(pins, Math.max(0.01, acres), effDpp);
-      const eff   = Math.min(8, Math.max(1, base.autoCount + (b.addedPasses||0) - (b.removedPasses||0)));
+      const eff   = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
       if (eff > 1){
         if ((b.addedPasses||0)>0) b.addedPasses -= 1;
         else b.removedPasses = (b.removedPasses||0) + 1;
