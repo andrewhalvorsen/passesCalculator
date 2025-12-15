@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Pass Pricing — Blocks</title>
 <style>
-  /* ===== Palette inspired by your mock ===== */
+  /* ===== Palette based on your mock ===== */
   :root{
     --surface:#ffffff;
     --bg:#f4f6f3;
@@ -13,8 +13,8 @@
 
     --forest:#1f3823;          /* dark panel/pill */
     --forest-2:#2a4a30;        /* alt dark */
-    --olive:#7ea447;           /* action pill/button */
-    --olive-2:#6a8f34;         /* hover/darker */
+    --olive:#5b7f2a;           /* darker action */
+    --olive-2:#496420;         /* darker hover/border */
     --chip-bg:#eef3ea;         /* input chip bg */
     --chip-border:#d7e0cf;
     --table-head:#e9f2e4;
@@ -22,7 +22,7 @@
     --accent:#7ea447;
     --warn-bg:#fef2f2;
     --warn-bd:#fecaca;
-    --yellow:#e8f29b;          /* keep subtle highlight for pass 1 */
+    --yellow:#e8f29b;          /* subtle highlight for pass 1 */
   }
 
   *{box-sizing:border-box}
@@ -64,7 +64,7 @@
   .controls-row>*{flex:0 0 auto}
 
   .group{display:flex;flex-direction:column;gap:4px;min-width:max-content}
-  .group .label{font-size:11px;color:#e6f4df;font-weight:700;letter-spacing:.02em}
+  .group .label{font-size:11px;color:#14301b;font-weight:800;letter-spacing:.02em}
   .row-controls{display:flex;gap:8px;align-items:center}
   .pill-btn{
     display:inline-flex;align-items:center;gap:6px;
@@ -72,6 +72,7 @@
     border-radius:9999px;padding:8px 12px;font-weight:800;cursor:pointer
   }
   .pill-btn:hover{background:var(--olive-2)}
+
   .chip{
     display:inline-flex;align-items:center;gap:8px;
     background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:9999px;
@@ -82,8 +83,10 @@
     width:80px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
   }
 
+  /* Edit bar (Edit-by hidden until editing) */
   .editbar{display:flex;align-items:center;gap:8px;justify-content:flex-end;padding:6px 12px}
   .editbar select{padding:6px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff}
+  #editByWrap{display:none} /* shown only when editing */
 
   .muted{color:#4a5d4c}
 
@@ -102,7 +105,7 @@
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
 
-  /* Block pill header (now forest green) */
+  /* Block pill header */
   .title{background:var(--surface);padding:0}
   .toggle-zone{
     margin:6px;
@@ -126,9 +129,8 @@
 
   .foot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);background:var(--surface)}
 
-  /* ===== Customer view rules (HIDE pill details except Pins & Acres) ===== */
-  body.customer .cust-hide{display:none !important}              /* hide advanced top controls */
-  /* Keep master table but hide adjusted/per-hour columns (already set below) */
+  /* ===== Customer view rules ===== */
+  body.customer .cust-hide{display:none !important}    /* hide advanced top controls */
   .col-adj-peracre,.col-hours,.col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
   body.customer .col-hours,
@@ -138,8 +140,7 @@
   .pill-hours,.pill-floor,.pill-dpp{display:inline}
   body.customer .pill-hours,
   body.customer .pill-floor,
-  body.customer .pill-dpp{display:none}          /* hide hours, floor, $/pin on pill */
-  /* show pins/acres */
+  body.customer .pill-dpp{display:none}
   .pill-pins,.pill-acres{display:inline}
 
   /* Inputs inside master table when editing */
@@ -193,16 +194,18 @@
       </div>
     </div>
 
-    <!-- Edit controls (pill-style) -->
+    <!-- Edit controls (Edit-by hidden until editing) -->
     <div class="editbar cust-hide">
       <button class="pill-btn" id="editToggle" type="button">Edit</button>
-      <span class="muted">Edit by:</span>
-      <select id="editBy">
-        <option value="total" selected>Total</option>
-        <option value="peracre">Cost / Acre</option>
-      </select>
-      <button class="pill-btn" id="editSave" type="button" style="display:none">Done</button>
-      <button class="pill-btn" id="editCancel" type="button" style="display:none">Cancel</button>
+      <span id="editByWrap">
+        <span class="muted">Edit by:</span>
+        <select id="editBy">
+          <option value="total" selected>Total</option>
+          <option value="peracre">Cost / Acre</option>
+        </select>
+        <button class="pill-btn" id="editSave" type="button">Done</button>
+        <button class="pill-btn" id="editCancel" type="button">Cancel</button>
+      </span>
     </div>
 
     <div class="muted" id="masterAcreInfoMuted" style="padding:0 12px 6px">Included acres: — • Included pins: —</div>
@@ -378,7 +381,7 @@ function blockHTML(b){
   </div>`;
 }
 
-/* ===== Edit / reverse-engineer (unchanged logic) ===== */
+/* ===== Edit / reverse-engineer ===== */
 function clearMasterError(){ const e=$('#masterErr'); if(e){e.style.display='none'; e.textContent='';} }
 function setMasterError(msg){ const e=$('#masterErr'); if(e){ e.style.display='block'; e.textContent=msg; } }
 
@@ -441,14 +444,10 @@ function renderAll(){
     const floor = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterFloor').value));
     const dpp   = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterDpp').value));
     let adjPct  = Math.trunc(Number($('#masterAdjPct')?.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
-    const adjFactor = 1 + (adjPct/100);
     const customerMode = document.body.classList.contains('customer');
 
-    const editBy = editState.by;
-    $('#editSave').style.display   = editState.active ? 'inline-flex' : 'none';
-    $('#editCancel').style.display = editState.active ? 'inline-flex' : 'none';
-    $('#editToggle').textContent   = editState.active ? 'Editing…' : 'Edit';
-    $('#editBy').disabled          = !editState.active;
+    // Edit UI show/hide
+    $('#editByWrap').style.display = (editState.active ? 'inline-flex' : 'none');
 
     const masterRows = [];
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
@@ -534,8 +533,9 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjPerAcre = round2(perAcre * (1 + (adjPct/100)));
-      const adjRowTotal= round2(baseRowTotal * (1 + (adjPct/100)));
+      const adjPerAcre = perAcre; // no external adj % UI in this version
+      const adjRowTotal= baseRowTotal;
+
       baseTotal += baseRowTotal; masterHours += hoursPass;
       const displayTotal = document.body.classList.contains('customer') ? adjRowTotal : baseRowTotal;
       const contribText = `${row.contrib||0}/${activeBlocks}`;
@@ -570,7 +570,7 @@ function renderAll(){
     if (!masterMonthsTouched || !Number.isFinite(months)){ months = maxPass; monthsEl.value = months; }
     months = clamp(Math.trunc(months), 1, 12); if (String(months)!==monthsEl.value) monthsEl.value = months;
 
-    const adjTotal = round2(baseTotal * (1 + (adjPct/100)));
+    const adjTotal = round2(baseTotal);
     $('#masterBaseTotal').textContent = fmtUSD(document.body.classList.contains('customer') ? adjTotal : round2(baseTotal));
     $('#masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
     const payments = equalPayments(adjTotal, months);
@@ -599,9 +599,17 @@ function wireEvents(){
   $('#masterDpp').addEventListener('input', renderAll);
 
   // Edit controls
-  $('#editToggle').addEventListener('click', ()=>{ editState.active = !editState.active; clearMasterError(); renderAll(); });
-  $('#editBy').addEventListener('change', (e)=>{ editState.by = e.target.value; renderAll(); });
-  $('#editCancel').addEventListener('click', ()=>{ editState.active = false; clearMasterError(); renderAll(); });
+  $('#editToggle').addEventListener('click', ()=>{
+    editState.active = !editState.active;
+    clearMasterError();
+    renderAll();
+  });
+  $('#editBy').addEventListener('change', (e)=>{ editState.by = e.target.value; });
+  $('#editCancel').addEventListener('click', ()=>{
+    editState.active = false;
+    clearMasterError();
+    renderAll();
+  });
   $('#editSave').addEventListener('click', ()=>{
     try{
       clearMasterError();
@@ -621,14 +629,20 @@ function wireEvents(){
           distributePassToTarget(passIndex, round2(perAcre * sumAcres));
         });
       }
-    }finally{ editState.active = false; renderAll(); }
+    }finally{
+      editState.active = false;
+      renderAll();
+    }
   });
 
+  // Master pass control
   $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
   $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
 
+  // Add block
   $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
 
+  // Blocks delegation
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
