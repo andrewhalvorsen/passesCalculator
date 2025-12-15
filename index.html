@@ -79,10 +79,10 @@
     width:86px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
   }
 
-  .muted{color:#e8f5e5} /* light text for green pill headers */
-  .accent{color:var(--labelGreen);font-weight:800} /* labels in summary */
+  .muted{color:#e8f5e5}
+  .accent{color:var(--labelGreen);font-weight:800}
 
-  /* Make the +0% label dark (not muted) */
+  /* Make the +0% label dark */
   #masterPctLabel{ color:var(--labelGreen) !important; font-weight:800; }
 
   /* Small buttons for master % adjust */
@@ -101,6 +101,10 @@
   .grid tfoot td{background:#f3f7ef;font-weight:800}
   .row-hi{background:var(--yellow)}
   .notice{color:#7a1111;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:10px;display:none;margin:0 12px 8px}
+
+  /* Hide HOURS everywhere in Customer view */
+  body.customer .col-hours,
+  body.customer .cust-hours { display:none !important; }
 
   /* Blocks */
   .blocks{padding:0 12px 12px}
@@ -212,7 +216,7 @@
             <th style="width:120px">Pass</th>
             <th>Cost / Acre</th>
             <th class="col-adj-peracre">Adjusted Cost / Acre</th>
-            <th>Hours</th>
+            <th class="col-hours">Hours</th>
             <th>Total Cost</th>
             <th class="col-adj-total">Adjusted Total Cost</th>
           </tr>
@@ -224,9 +228,8 @@
             <td style="text-align:center"># of Passes</td>
             <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
             <td class="col-adj-peracre"></td>
-            <td id="masterHoursCell" style="text-align:right">— h</td>
+            <td id="masterHoursCell" class="col-hours" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
-            <!-- Adjusted total (single line, no label) -->
             <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
               <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap">
                 <span class="pill inline" id="masterAdjTotalPill">$—</span>
@@ -240,7 +243,7 @@
       </table>
     </div>
 
-    <!-- EXTRA SERVICES (master-level — qty aggregated from blocks) -->
+    <!-- EXTRA SERVICES -->
     <div class="inputs" id="extrasSection">
       <div class="controls-row">
         <div class="group">
@@ -263,7 +266,6 @@
         <span class="accent" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
       </div>
 
-      <!-- Monthly breakdown -->
       <div class="foot-topline">
         <span class="accent">Monthly (Services):</span>
         <span class="pill inline" id="monthlyServicesPill">$—/mo</span>
@@ -271,13 +273,11 @@
         <span class="pill inline" id="monthlyExtrasPill">$—/mo</span>
       </div>
 
-      <!-- Bottom total per month -->
       <div class="foot-topline">
         <span class="accent">Total per month:</span>
         <span class="pill inline" id="masterMonthlyTotalPill">$—/mo</span>
       </div>
 
-      <!-- Schedule line -->
       <div class="foot-topline">
         <span class="accent">Payment plan:</span>
         <span class="pill inline" id="masterPaymentPill">—</span>
@@ -348,7 +348,7 @@ function blockHTML(b){
           <span class="pill-title">Block ${b.id}</span>
           <span class="muted">• Pins: <span id="hdrPins-${b.id}">—</span></span>
           <span class="muted">• Acres: <span id="hdrAcres-${b.id}">—</span></span>
-          <span class="muted">• <span id="pillHours-${b.id}">0.00</span> h</span>
+          <span class="muted cust-hours">• <span id="pillHours-${b.id}">0.00</span> h</span>
           <span class="muted">• <span id="pillMonthly-${b.id}">$0.00/mo</span></span>
           <span class="muted">• Owls: <span id="pillOwls-${b.id}">0</span></span>
         </div>
@@ -419,7 +419,7 @@ function blockHTML(b){
             <tr>
               <th style="width:120px">Pass</th>
               <th>Cost / Acre</th>
-              <th>Hours</th>
+              <th class="col-hours">Hours</th>
               <th>Total Cost</th>
             </tr>
           </thead>
@@ -428,7 +428,7 @@ function blockHTML(b){
             <tr>
               <td style="text-align:center"># of Passes</td>
               <td id="passesCell-${b.id}" class="muted" style="text-align:center">—</td>
-              <td id="hoursCell-${b.id}" style="text-align:right">— h</td>
+              <td id="hoursCell-${b.id}" class="col-hours" style="text-align:right">— h</td>
               <td id="grandCell-${b.id}" style="text-align:right">$—</td>
             </tr>
           </tfoot>
@@ -501,7 +501,7 @@ function adjustBlockTotal(b, targetAdjusted){
   const id = b.id;
 
   const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
-  const acres = Number($(`#acres-${id}`).value||0) || 0.01; // avoid 0
+  const acres = Number($(`#acres-${id}`).value||0) || 0.01;
 
   const floorIn = $(`#floor-${id}`), dppIn = $(`#dpp-${id}`);
   const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0)
@@ -509,17 +509,16 @@ function adjustBlockTotal(b, targetAdjusted){
   const effDpp   = (dppIn.value!==''   && Number.isFinite(Number(dppIn.value))   && Number(dppIn.value)  >=0)
     ? round2(Number(dppIn.value))   : (Number($('#masterDpp').value)||20);
 
-  // Current pass rates for this block
   const base = calcBase(pins, acres, effDpp);
   let passCount = base.autoCount + (b.addedPasses||0) - (b.removedPasses||0);
   passCount = clamp(passCount,1,8);
   const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-  const factor = 1 + (Number(masterAdjPct)||0)/100;            // adjusted vs base
-  const targetBaseTotal = Number(targetAdjusted||0) / factor;   // sum(passBase)
+  const factor = 1 + (Number(masterAdjPct)||0)/100;
+  const targetBaseTotal = Number(targetAdjusted||0) / factor;
   if (!(targetBaseTotal>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
 
-  const targetSumRates = targetBaseTotal / acres;               // sum of per-acre rates to hit target
+  const targetSumRates = targetBaseTotal / acres;
   const curSumRates = q.passes.reduce((s,p)=> s+p.perAcre, 0);
   const sumFloors   = passCount * effFloor;
 
@@ -529,7 +528,6 @@ function adjustBlockTotal(b, targetAdjusted){
     return;
   }
 
-  // Uniform scale, then iterate respecting floors
   let s = curSumRates>0 ? (targetSumRates / curSumRates) : 1;
   const rates = q.passes.map(p => Math.max(effFloor, round2(p.perAcre * s)));
   let achieved = rates.reduce((a,r)=>a+r,0);
@@ -558,11 +556,10 @@ function renderAll(){
     $('#editByWrap').style.display = (editState.active ? 'inline-flex' : 'none');
     $('#editToggle').style.display = (editState.active ? 'none' : 'inline-flex');
 
-    const masterRows = []; // idx -> { baseTotal, adjTotal, acres, contrib }
+    const masterRows = [];
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
-    let blocksOwlsQtySum = 0; // aggregated from blocks (included only)
+    let blocksOwlsQtySum = 0;
 
-    // Months (used for plan & block pills)
     let months = Number($('#masterMonths').value);
     if (!Number.isFinite(months) || months<1) months = 1;
 
@@ -577,7 +574,7 @@ function renderAll(){
         if (err) err.style.display='none';
 
         const pins  = Math.trunc(Number($(`#pins-${b.id}`).value));
-        const acres = Number($(`#acres-${b.id}`).value);  /* <-- FIXED LINE (no extra ) ) */
+        const acres = Number($(`#acres-${b.id}`).value);
 
         const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
         const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0) ? round2(Number(floorIn.value)) : floor;
@@ -589,7 +586,6 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-        // block-level owl boxes (qty only; price comes from master)
         const bOwlQty = Math.max(0, Math.trunc(Number($(`#owlQty-${b.id}`).value)||0));
         if (include) blocksOwlsQtySum += bOwlQty;
 
@@ -598,16 +594,16 @@ function renderAll(){
         $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
         $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
-        $(`#pillOwls-${b.id}`).textContent       = `${bOwlQty}`; // show COUNT
+        $(`#pillOwls-${b.id}`).textContent       = `${bOwlQty}`;
 
-        // build block table rows + accumulate to master
+        // build block table + accumulate to master
         const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
         let blockBaseTotal = 0, blockAdjTotal = 0, blockHours = 0;
 
         for (const p of q.passes){
           const passBase  = round2(p.perAcre * acres);
           const passAdj   = round2(passBase * factor);
-          const hours     = round2(passBase / 120);  // HOURS from BASE (unadjusted)
+          const hours     = round2(passBase / 120);
 
           blockBaseTotal += passBase;
           blockAdjTotal  += passAdj;
@@ -618,7 +614,7 @@ function renderAll(){
           tr.innerHTML = `
             <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
             <td>${fmtUSD(round2(p.perAcre))}</td>
-            <td>${hours.toFixed(2)} h</td>
+            <td class="col-hours">${hours.toFixed(2)} h</td>
             <td>${fmtUSD(passAdj)}</td>`;
           tbody.appendChild(tr);
 
@@ -637,12 +633,9 @@ function renderAll(){
         $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);
         $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
 
-        // pill hours + monthly (services only)
         $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
         const perMonthServices = round2(blockAdjTotal / months);
         $(`#pillMonthly-${b.id}`).textContent = `${fmtUSD(perMonthServices)}/mo`;
-
-        // "Whole-field total" shows adjusted services total (not extras)
         $(`#total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
 
         if (include){ totalActiveAcres += acres; includedPins += pins; activeBlocks++; }
@@ -654,7 +647,7 @@ function renderAll(){
 
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-    // master table from aggregated rows
+    // master table
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, adjTotal = 0, masterHours = 0;
     for (let i=0;i<masterRows.length;i++){
@@ -663,7 +656,7 @@ function renderAll(){
       const adjRowTotal  = round2(row.adjTotal);
       const basePerAcre  = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const adjPerAcre   = row.acres>0 ? round2(adjRowTotal/row.acres)  : 0;
-      const hoursPass    = round2(baseRowTotal/120); // HOURS from BASE
+      const hoursPass    = round2(baseRowTotal/120);
 
       baseTotal += baseRowTotal; adjTotal += adjRowTotal; masterHours += hoursPass;
 
@@ -675,7 +668,7 @@ function renderAll(){
         <td style="text-align:center">Pass ${i+1}</td>
         <td>${fmtUSD(basePerAcre)}</td>
         <td class="col-adj-peracre">${fmtUSD(adjPerAcre)}</td>
-        <td>${hoursPass.toFixed(2)} h</td>
+        <td class="col-hours">${hoursPass.toFixed(2)} h</td>
         <td>${fmtUSD(displayTotal)}</td>
         <td class="col-adj-total">${fmtUSD(adjRowTotal)}</td>`;
       if (i===0) tr.classList.add('row-hi');
@@ -689,13 +682,13 @@ function renderAll(){
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
 
-    // MASTER-LEVEL extras (qty aggregated from blocks)
+    // Extras (qty aggregated from blocks)
     const owlPriceMaster = Math.max(0, Number($('#owlPrice').value)||0);
     const extrasTotal = round2(blocksOwlsQtySum * owlPriceMaster);
     $('#owlQtyTotalPill').textContent = `Owls: ${blocksOwlsQtySum}`;
     $('#owlTotalPill').textContent = fmtUSD(extrasTotal);
 
-    // months & payments (extras INCLUDED in monthly + payments)
+    // months & payments
     let monthsVal = Number($('#masterMonths').value);
     const maxPass = mBody.children.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; $('#masterMonths').value = monthsVal; }
@@ -734,34 +727,25 @@ function wireEvents(){
     renderAll();
   });
 
-  // master inputs
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // edit controls (kept, hidden until used)
-  $('#editToggle').addEventListener('click', ()=>{
-    editState.active = true; renderAll();
-  });
+  $('#editToggle').addEventListener('click', ()=>{ editState.active = true; renderAll(); });
   $('#editBy').addEventListener('change', (e)=>{ editState.by = e.target.value; renderAll(); });
   $('#editCancel').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
   $('#editSave').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
 
-  // Master pass control
   $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
   $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
 
-  // Master % adjuster
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
 
-  // Extra services (master) — only price is editable now
   $('#owlPrice').addEventListener('input', renderAll);
 
-  // Add block
   $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
 
-  // Blocks delegation
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
@@ -781,7 +765,6 @@ function wireEvents(){
       renderAll(); return;
     }
 
-    // apply target total for a block
     if (btn && btn.id.startsWith('applyTarget-')){
       const id = Number(btn.id.replace('applyTarget-',''));
       const b = blocks.find(x=>x.id===id); if (!b) return;
@@ -801,7 +784,6 @@ function wireEvents(){
     }
   });
 
-  // Enter key on target total
   blocksEl.addEventListener('keydown', (e)=>{
     if (e.key==='Enter' && e.target.id && e.target.id.startsWith('target-')){
       const id = Number(e.target.id.replace('target-',''));
