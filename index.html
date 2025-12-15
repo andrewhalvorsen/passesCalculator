@@ -157,7 +157,7 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- One row: Master Pass Control, Months, Min/acre, $/pin -->
+    <!-- Controls row -->
     <div class="inputs">
       <div class="controls-row">
         <div class="group cust-hide">
@@ -182,10 +182,10 @@
         </div>
       </div>
 
-      <!-- Edit block sits BELOW the row, left aligned -->
+      <!-- Edit block (kept for reverse-engineer feature) -->
       <div class="edit-under">
         <button class="pill-btn cust-hide" id="editToggle" type="button">Edit</button>
-        <span id="editByWrap" class="edit-inline cust-hide">
+        <span id="editByWrap" class="edit-inline cust-hide" style="display:none">
           <span class="muted">Edit by</span>
           <select id="editBy">
             <option value="total" selected>Total</option>
@@ -197,6 +197,7 @@
       </div>
     </div>
 
+    <!-- TABLE -->
     <div style="padding:0 12px 0">
       <table class="grid">
         <thead>
@@ -219,10 +220,9 @@
             <td class="col-adj-peracre"></td>
             <td id="masterHoursCell" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
-            <!-- Adjusted total moved INTO the bottom of the Adjusted Total Cost column -->
+            <!-- Bottom-of-column adjusted total (single line, no label) -->
             <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
-              <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-                <span>Adjusted Total:</span>
+              <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap">
                 <span class="pill inline" id="masterAdjTotalPill">$—</span>
                 <button class="micro" id="masterDecPct" type="button">−1%</button>
                 <span id="masterPctLabel" class="muted">+0%</span>
@@ -234,7 +234,28 @@
       </table>
     </div>
 
-    <!-- Footer (kept minimal now that adjusted total is in the column footer) -->
+    <!-- EXTRA SERVICES -->
+    <div class="inputs" id="extrasSection">
+      <div class="controls-row">
+        <div class="group">
+          <div class="label">Extra services</div>
+          <div class="row-controls">
+            <span class="pill inline">Owl boxes</span>
+            <div class="chip">
+              <label for="owlQty">Qty</label>
+              <input id="owlQty" type="number" min="0" step="1" value="0" />
+            </div>
+            <div class="chip">
+              <label for="owlPrice">Price</label>
+              <input id="owlPrice" type="number" min="0" step="0.01" value="600" />
+            </div>
+            <span class="pill inline" id="owlTotalPill">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOT -->
     <div class="foot">
       <div class="foot-topline">
         <span class="muted" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
@@ -383,12 +404,11 @@ function blockHTML(b){
   </div>`;
 }
 
-/* Edit / reverse-engineer */
+/* Edit helpers */
 function clearMasterError(){ const e=$('#masterErr'); if(e){e.style.display='none'; e.textContent='';} }
 function setMasterError(msg){ const e=$('#masterErr'); if(e){ e.style.display='block'; e.textContent=msg; } }
 
 function gatherPassContext(passIndex){
-  // Use BASE (pre-adjust) rates for editing
   const ctx = [];
   for (const b of blocks){
     if (!b.include) continue;
@@ -446,17 +466,16 @@ function renderAll(){
   try{
     const floor = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterFloor').value));
     const dpp   = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterDpp').value));
+    const factor = 1 + (Number(masterAdjPct)||0)/100;
 
     // Edit UI show/hide
     $('#editByWrap').style.display = (editState.active ? 'inline-flex' : 'none');
     $('#editToggle').style.display = (editState.active ? 'none' : 'inline-flex');
 
-    const factor = 1 + (Number(masterAdjPct)||0)/100;
-
     const masterRows = []; // idx -> { baseTotal, adjTotal, acres, contrib }
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
 
-    // Months for per-block monthly pill
+    // Months (used for payment plan & per-block monthly pill)
     let months = Number($('#masterMonths').value);
     if (!Number.isFinite(months) || months<1) months = 1;
 
@@ -483,13 +502,7 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-        // header pill meta
-        $(`#hdrPins-${b.id}`).textContent  = `Pins: ${Number.isFinite(pins)?pins:'—'}`;
-        $(`#hdrAcres-${b.id}`).textContent = `Acres: ${Number.isFinite(acres)?round2(acres).toFixed(2):'—'}`;
-        $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
-        $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
-
-        // build block table rows + accumulate to master
+        // block table rows + accumulate to master
         const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
         let blockBaseTotal = 0, blockAdjTotal = 0, blockHours = 0;
 
@@ -521,18 +534,12 @@ function renderAll(){
           }
         }
 
+        // block footer & pills
         $(`#base-${b.id}`).textContent      = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
         $(`#passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
-        $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);  // adjusted in the block footer
+        $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);
         $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
-
-        // pill hours + monthly
-        $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
-        const perMonth = round2(blockAdjTotal / months);
-        $(`#pillMonthly-${b.id}`).textContent = `${fmtUSD(perMonth)}/mo`;
-
-        // "Whole-field total" shows adjusted
-        $(`#total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
+        $(`#total-${b.id}`).textContent     = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
 
         if (include){ totalActiveAcres += acres; includedPins += pins; activeBlocks++; }
       }catch(inner){
@@ -552,7 +559,7 @@ function renderAll(){
       const adjRowTotal  = round2(row.adjTotal);
       const basePerAcre  = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const adjPerAcre   = row.acres>0 ? round2(adjRowTotal/row.acres)  : 0;
-      const hoursPass    = round2(baseRowTotal/120); // HOURS from BASE (unadjusted)
+      const hoursPass    = round2(baseRowTotal/120); // HOURS from BASE
 
       baseTotal += baseRowTotal; adjTotal += adjRowTotal; masterHours += hoursPass;
 
@@ -573,28 +580,29 @@ function renderAll(){
     $('#masterPassesCell').textContent = mBody.children.length || '—';
     $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
     $('#masterBlocksCell').textContent = `${activeBlocks}/${blocks.length}`;
-
-    // Included acres & pins
-    $('#masterAcreInfoMuted').textContent =
-      `Included acres: ${round2(totalActiveAcres)} • Included pins: ${includedPins}`;
-
-    // months & payments
-    const monthsEl = $('#masterMonths');
-    let monthsVal = Number(monthsEl.value);
-    const maxPass = mBody.children.length || 1;
-    if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; monthsEl.value = monthsVal; }
-    monthsVal = clamp(Math.trunc(monthsVal), 1, 12); if (String(monthsVal)!==monthsEl.value) monthsEl.value = monthsVal;
-
-    // Totals
     const baseShown = document.body.classList.contains('customer') ? adjTotal : baseTotal;
     $('#masterBaseTotal').textContent = fmtUSD(round2(baseShown));
-
-    // Adjusted total pill (now in table footer cell) + label
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
 
-    const payments = equalPayments(round2(adjTotal), monthsVal);
+    // EXTRA SERVICES
+    const owlQty   = Math.max(0, Math.trunc(Number($('#owlQty').value)||0));
+    const owlPrice = Math.max(0, Number($('#owlPrice').value)||0);
+    const extrasTotal = round2(owlQty * owlPrice);
+    $('#owlTotalPill').textContent = fmtUSD(extrasTotal);
+
+    // months & payments (extras INCLUDED)
+    let monthsVal = Number($('#masterMonths').value);
+    const maxPass = mBody.children.length || 1;
+    if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; $('#masterMonths').value = monthsVal; }
+    monthsVal = clamp(Math.trunc(monthsVal), 1, 12); if (String(monthsVal)!==$('#masterMonths').value) $('#masterMonths').value = monthsVal;
+
+    const grandDue = round2(adjTotal + extrasTotal);
+    const payments = equalPayments(grandDue, monthsVal);
     $('#masterPaymentPill').textContent = `${monthsVal} payments of ${fmtUSD(payments[0]||0)}`;
+
+    // Included acres & pins
+    $('#masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)} • Included pins: ${includedPins}`;
   }catch(e){ console.error(e); }
 }
 
@@ -614,67 +622,30 @@ function wireEvents(){
     renderAll();
   });
 
+  // master inputs
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // Edit controls
+  // edit controls (kept, hidden until used)
   $('#editToggle').addEventListener('click', ()=>{
-    editState.active = true;
-    clearMasterError();
-    renderAll();
+    editState.active = true; renderAll();
   });
-  $('#editBy').addEventListener('change', (e)=>{
-    editState.by = e.target.value;
-    renderAll();
-  });
-  $('#editCancel').addEventListener('click', ()=>{
-    editState.active = false;
-    clearMasterError();
-    renderAll();
-  });
-  $('#editSave').addEventListener('click', ()=>{
-    try{
-      clearMasterError();
-      if (editState.by==='total'){
-        document.querySelectorAll('.edit-total').forEach(inp=>{
-          const passIndex = Number(inp.dataset.pass);
-          const val = Number(inp.value);
-          if (Number.isFinite(val)) distributePassToTarget(passIndex, val);
-        });
-      }else{
-        document.querySelectorAll('.edit-peracre').forEach(inp=>{
-          const passIndex = Number(inp.dataset.pass);
-          const perAcre = Number(inp.value);
-          if (!Number.isFinite(perAcre)) return;
-          let sumAcres = 0;
-          for (const b of blocks){
-            if (!b.include) continue;
-            const pins  = Math.trunc(Number($(`#pins-${b.id}`).value||0));
-            const acres = Number($(`#acres-${b.id}`).value||0);
-            const dppIn = $(`#dpp-${b.id}`).value;
-            const mdpp  = Number($('#masterDpp').value||20);
-            const effDpp= (dppIn!=='' && Number.isFinite(Number(dppIn))) ? Number(dppIn) : mdpp;
-            const base  = calcBase(pins, Math.max(0.01, acres), effDpp);
-            const passCount = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
-            if (passIndex <= passCount) sumAcres += acres;
-          }
-          distributePassToTarget(passIndex, round2(perAcre * sumAcres));
-        });
-      }
-    }finally{
-      editState.active = false;
-      renderAll();
-    }
-  });
+  $('#editBy').addEventListener('change', (e)=>{ editState.by = e.target.value; renderAll(); });
+  $('#editCancel').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
+  $('#editSave').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
 
   // Master pass control
   $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
   $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
 
-  // Master % adjuster (now in the Adjusted Total Cost tfoot cell)
+  // Master % adjuster
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
+
+  // Extra services
+  $('#owlQty').addEventListener('input', renderAll);
+  $('#owlPrice').addEventListener('input', renderAll);
 
   // Add block
   $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
