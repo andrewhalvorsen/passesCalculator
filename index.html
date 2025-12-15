@@ -10,15 +10,17 @@
     --bg:#f4f6f3;
     --ink:#112015;
 
-    --forest:#1f3823;   /* pill/header */
-    --forest-2:#2a4a30; /* title bar */
-    --olive:#5b7f2a;    /* action */
-    --olive-2:#496420;  /* hover */
+    --forest:#1f3823;   /* block pill background */
+    --forest-2:#2a4a30; /* summary header */
+    --olive:#5b7f2a;    /* buttons */
+    --olive-2:#496420;  /* button hover */
     --chip-bg:#eef3ea;
     --chip-border:#d7e0cf;
     --table-head:#e9f2e4;
     --border:#dfe7d8;
     --yellow:#e8f29b;
+
+    --labelGreen:#14301b; /* “Master Pass Control” label color */
   }
 
   *{box-sizing:border-box}
@@ -59,7 +61,7 @@
   }
   .controls-row>*{flex:0 0 auto}
   .group{display:flex;flex-direction:column;gap:4px;min-width:max-content}
-  .group .label{font-size:11px;color:#14301b;font-weight:800;letter-spacing:.02em}
+  .group .label{font-size:11px;color:var(--labelGreen);font-weight:800;letter-spacing:.02em}
   .row-controls{display:flex;gap:8px;align-items:center}
   .pill-btn{
     display:inline-flex;align-items:center;gap:6px;
@@ -77,7 +79,8 @@
     width:86px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
   }
 
-  .muted{color:#e8f5e5} /* light text on green pills */
+  .muted{color:#e8f5e5} /* light text for green pill headers */
+  .accent{color:var(--labelGreen);font-weight:800} /* use this for breakdown labels */
 
   /* Small buttons for master % adjust */
   .micro{
@@ -258,26 +261,26 @@
     <!-- FOOT -->
     <div class="foot">
       <div class="foot-topline">
-        <span class="muted" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
+        <span class="accent" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
       </div>
 
       <!-- Monthly breakdown -->
       <div class="foot-topline">
-        <span class="muted">Monthly (Services):</span>
+        <span class="accent">Monthly (Services):</span>
         <span class="pill inline" id="monthlyServicesPill">$—/mo</span>
-        <span class="muted">Monthly (Extras):</span>
+        <span class="accent">Monthly (Extras):</span>
         <span class="pill inline" id="monthlyExtrasPill">$—/mo</span>
       </div>
 
       <!-- Bottom total per month -->
       <div class="foot-topline">
-        <span class="muted">Total per month:</span>
+        <span class="accent">Total per month:</span>
         <span class="pill inline" id="masterMonthlyTotalPill">$—/mo</span>
       </div>
 
       <!-- Schedule line -->
       <div class="foot-topline">
-        <span class="muted">Payment plan:</span>
+        <span class="accent">Payment plan:</span>
         <span class="pill inline" id="masterPaymentPill">—</span>
       </div>
     </div>
@@ -330,7 +333,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, 
 }
 
 /* State */
-let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides,owlQty,owlPrice}
+let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides,owlQty}
 let blockSeq = 1;
 let masterMonthsTouched = false;
 const editState = { active:false, by:'total' };
@@ -348,7 +351,7 @@ function blockHTML(b){
           <span class="muted">• Acres: <span id="hdrAcres-${b.id}">—</span></span>
           <span class="muted">• <span id="pillHours-${b.id}">0.00</span> h</span>
           <span class="muted">• <span id="pillMonthly-${b.id}">$0.00/mo</span></span>
-          <span class="muted">• Owls: <span id="pillOwls-${b.id}">$0.00</span></span>
+          <span class="muted">• Owls: <span id="pillOwls-${b.id}">0</span></span>
         </div>
         <div class="tz-right">
           <span class="muted pill-floor" id="effectiveFloor-${b.id}"></span>
@@ -383,14 +386,10 @@ function blockHTML(b){
             <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
           </div>
 
-          <!-- Block-level Owl boxes -->
+          <!-- Block-level Owl boxes (qty only; price comes from master) -->
           <div class="chip">
             <label for="owlQty-${b.id}">Owl qty</label>
             <input id="owlQty-${b.id}" type="number" min="0" step="1" value="${b.owlQty||0}">
-          </div>
-          <div class="chip">
-            <label for="owlPrice-${b.id}">Owl price</label>
-            <input id="owlPrice-${b.id}" type="number" min="0" step="0.01" placeholder="">
           </div>
 
           <div class="row-controls" style="margin-left:8px">
@@ -530,12 +529,10 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-        // block-level owl boxes
+        // block-level owl boxes (qty only; price comes from master)
         const masterOwlPrice = Math.max(0, Number($('#owlPrice').value)||600);
         const bOwlQty = Math.max(0, Math.trunc(Number($(`#owlQty-${b.id}`).value)||0));
-        const bOwlPriceInput = Number($(`#owlPrice-${b.id}`).value);
-        const bOwlPrice = Number.isFinite(bOwlPriceInput) && bOwlPriceInput>=0 ? bOwlPriceInput : masterOwlPrice;
-        const bOwlTotal = round2(bOwlQty * bOwlPrice);
+        const bOwlTotal = round2(bOwlQty * masterOwlPrice);
         if (include) extrasBlocksTotal += bOwlTotal;
 
         // header pill meta
@@ -543,7 +540,7 @@ function renderAll(){
         $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
         $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
-        $(`#pillOwls-${b.id}`).textContent       = fmtUSD(bOwlTotal);
+        $(`#pillOwls-${b.id}`).textContent       = `${bOwlQty}`; // show COUNT, not cost
 
         // build block table rows + accumulate to master
         const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
@@ -666,7 +663,7 @@ function renderAll(){
 /* Blocks */
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
-  const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{}, owlQty:0, owlPrice:undefined };
+  const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{}, owlQty:0 };
   blocks.push(b);
   $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
   renderAll();
@@ -735,10 +732,10 @@ function wireEvents(){
     }
   });
   blocksEl.addEventListener('input', (e)=>{
-    if (/^(pins-|acres-|floor-|dpp-|owlQty-|owlPrice-)/.test(e.target.id)) renderAll();
+    if (/^(pins-|acres-|floor-|dpp-|owlQty-)/.test(e.target.id)) renderAll();
   });
   blocksEl.addEventListener('change', (e)=>{
-    if (/^(pins-|acres-|floor-|dpp-|include-|owlQty-|owlPrice-)/.test(e.target.id)) renderAll();
+    if (/^(pins-|acres-|floor-|dpp-|include-|owlQty-)/.test(e.target.id)) renderAll();
   });
 }
 
