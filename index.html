@@ -74,10 +74,10 @@
   }
   .chip label{font-size:11px;opacity:.85}
   .chip input{
-    width:80px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
+    width:86px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
   }
 
-  .muted{color:#4a5d4c}
+  .muted{color:#e8f5e5} /* light text on green pills */
 
   /* Small buttons for master % adjust */
   .micro{
@@ -124,7 +124,7 @@
   .block .pill-btn{padding:8px 12px}
 
   .foot{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface)}
-  .foot-topline{display:flex;align-items:center;gap:8px}
+  .foot-topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
   /* CUSTOMER VIEW rules */
   body.customer .cust-hide{display:none !important}
@@ -182,7 +182,7 @@
         </div>
       </div>
 
-      <!-- Edit block (kept for reverse-engineer feature) -->
+      <!-- Edit block (reverse-engineer feature) -->
       <div class="edit-under">
         <button class="pill-btn cust-hide" id="editToggle" type="button">Edit</button>
         <span id="editByWrap" class="edit-inline cust-hide" style="display:none">
@@ -220,7 +220,7 @@
             <td class="col-adj-peracre"></td>
             <td id="masterHoursCell" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
-            <!-- Bottom-of-column adjusted total (single line, no label) -->
+            <!-- Adjusted total (single line, no label) -->
             <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
               <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap">
                 <span class="pill inline" id="masterAdjTotalPill">$—</span>
@@ -234,11 +234,11 @@
       </table>
     </div>
 
-    <!-- EXTRA SERVICES -->
+    <!-- EXTRA SERVICES (master-level) -->
     <div class="inputs" id="extrasSection">
       <div class="controls-row">
         <div class="group">
-          <div class="label">Extra services</div>
+          <div class="label">Extra services (adds to monthly)</div>
           <div class="row-controls">
             <span class="pill inline">Owl boxes</span>
             <div class="chip">
@@ -260,6 +260,22 @@
       <div class="foot-topline">
         <span class="muted" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
       </div>
+
+      <!-- Monthly breakdown -->
+      <div class="foot-topline">
+        <span class="muted">Monthly (Services):</span>
+        <span class="pill inline" id="monthlyServicesPill">$—/mo</span>
+        <span class="muted">Monthly (Extras):</span>
+        <span class="pill inline" id="monthlyExtrasPill">$—/mo</span>
+      </div>
+
+      <!-- Bottom total per month -->
+      <div class="foot-topline">
+        <span class="muted">Total per month:</span>
+        <span class="pill inline" id="masterMonthlyTotalPill">$—/mo</span>
+      </div>
+
+      <!-- Schedule line -->
       <div class="foot-topline">
         <span class="muted">Payment plan:</span>
         <span class="pill inline" id="masterPaymentPill">—</span>
@@ -314,7 +330,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, 
 }
 
 /* State */
-let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides}
+let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides,owlQty,owlPrice}
 let blockSeq = 1;
 let masterMonthsTouched = false;
 const editState = { active:false, by:'total' };
@@ -328,17 +344,18 @@ function blockHTML(b){
       <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
         <div class="tz-left">
           <span class="pill-title">Block ${b.id}</span>
-          <span class="pill-hours">• <span id="pillHours-${b.id}">0.00</span> h</span>
-          <span class="pill-monthly">• <span id="pillMonthly-${b.id}">$0.00/mo</span></span>
+          <span class="muted">• Pins: <span id="hdrPins-${b.id}">—</span></span>
+          <span class="muted">• Acres: <span id="hdrAcres-${b.id}">—</span></span>
+          <span class="muted">• <span id="pillHours-${b.id}">0.00</span> h</span>
+          <span class="muted">• <span id="pillMonthly-${b.id}">$0.00/mo</span></span>
+          <span class="muted">• Owls: <span id="pillOwls-${b.id}">$0.00</span></span>
         </div>
         <div class="tz-right">
-          <span class="muted pill-pins"  id="hdrPins-${b.id}">Pins: —</span>
-          <span class="muted pill-acres" id="hdrAcres-${b.id}">Acres: —</span>
           <span class="muted pill-floor" id="effectiveFloor-${b.id}"></span>
           <span class="muted pill-dpp"   id="effectiveDpp-${b.id}"></span>
           <label class="switch" id="include-wrap-${b.id}">
             <input type="checkbox" id="include-${b.id}" ${b.include?'checked':''}>
-            <span id="include-label-${b.id}">Include in totals</span>
+            <span id="include-label-${b.id}">Include</span>
           </label>
         </div>
       </div>
@@ -364,6 +381,16 @@ function blockHTML(b){
           <div class="chip">
             <label for="dpp-${b.id}">$ / pin</label>
             <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
+          </div>
+
+          <!-- Block-level Owl boxes -->
+          <div class="chip">
+            <label for="owlQty-${b.id}">Owl qty</label>
+            <input id="owlQty-${b.id}" type="number" min="0" step="1" value="${b.owlQty||0}">
+          </div>
+          <div class="chip">
+            <label for="owlPrice-${b.id}">Owl price</label>
+            <input id="owlPrice-${b.id}" type="number" min="0" step="0.01" placeholder="">
           </div>
 
           <div class="row-controls" style="margin-left:8px">
@@ -423,7 +450,7 @@ function gatherPassContext(passIndex){
     const passCount = clamp(base.autoCount + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
     if (passIndex > passCount) continue;
     const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
-    const rate = q.passes[passIndex-1].perAcre; // base rate
+    const rate = q.passes[passIndex-1].perAcre;
     ctx.push({ b, acres, effFloor, rate });
   }
   return ctx;
@@ -474,8 +501,9 @@ function renderAll(){
 
     const masterRows = []; // idx -> { baseTotal, adjTotal, acres, contrib }
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
+    let extrasBlocksTotal = 0;
 
-    // Months (used for payment plan & per-block monthly pill)
+    // Months (used for plan & block pills)
     let months = Number($('#masterMonths').value);
     if (!Number.isFinite(months) || months<1) months = 1;
 
@@ -502,7 +530,22 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-        // block table rows + accumulate to master
+        // block-level owl boxes
+        const masterOwlPrice = Math.max(0, Number($('#owlPrice').value)||600);
+        const bOwlQty = Math.max(0, Math.trunc(Number($(`#owlQty-${b.id}`).value)||0));
+        const bOwlPriceInput = Number($(`#owlPrice-${b.id}`).value);
+        const bOwlPrice = Number.isFinite(bOwlPriceInput) && bOwlPriceInput>=0 ? bOwlPriceInput : masterOwlPrice;
+        const bOwlTotal = round2(bOwlQty * bOwlPrice);
+        if (include) extrasBlocksTotal += bOwlTotal;
+
+        // header pill meta
+        $(`#hdrPins-${b.id}`).textContent  = Number.isFinite(pins)?pins:'—';
+        $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
+        $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
+        $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
+        $(`#pillOwls-${b.id}`).textContent       = fmtUSD(bOwlTotal);
+
+        // build block table rows + accumulate to master
         const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
         let blockBaseTotal = 0, blockAdjTotal = 0, blockHours = 0;
 
@@ -534,12 +577,18 @@ function renderAll(){
           }
         }
 
-        // block footer & pills
         $(`#base-${b.id}`).textContent      = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
         $(`#passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
         $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);
         $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
-        $(`#total-${b.id}`).textContent     = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
+
+        // pill hours + monthly (services only)
+        $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
+        const perMonthServices = round2(blockAdjTotal / months);
+        $(`#pillMonthly-${b.id}`).textContent = `${fmtUSD(perMonthServices)}/mo`;
+
+        // "Whole-field total" shows adjusted services total (not extras)
+        $(`#total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
 
         if (include){ totalActiveAcres += acres; includedPins += pins; activeBlocks++; }
       }catch(inner){
@@ -585,19 +634,27 @@ function renderAll(){
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
 
-    // EXTRA SERVICES
-    const owlQty   = Math.max(0, Math.trunc(Number($('#owlQty').value)||0));
-    const owlPrice = Math.max(0, Number($('#owlPrice').value)||0);
-    const extrasTotal = round2(owlQty * owlPrice);
-    $('#owlTotalPill').textContent = fmtUSD(extrasTotal);
+    // MASTER-LEVEL extras
+    const owlQtyMaster   = Math.max(0, Math.trunc(Number($('#owlQty').value)||0));
+    const owlPriceMaster = Math.max(0, Number($('#owlPrice').value)||0);
+    const extrasMasterTotal = round2(owlQtyMaster * owlPriceMaster);
+    $('#owlTotalPill').textContent = fmtUSD(extrasMasterTotal);
 
-    // months & payments (extras INCLUDED)
+    // months & payments (extras INCLUDED in monthly + payments)
     let monthsVal = Number($('#masterMonths').value);
     const maxPass = mBody.children.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; $('#masterMonths').value = monthsVal; }
     monthsVal = clamp(Math.trunc(monthsVal), 1, 12); if (String(monthsVal)!==$('#masterMonths').value) $('#masterMonths').value = monthsVal;
 
-    const grandDue = round2(adjTotal + extrasTotal);
+    const monthlyServices = round2(adjTotal / monthsVal);
+    const monthlyExtras   = round2((extrasMasterTotal + extrasBlocksTotal) / monthsVal);
+    const monthlyTotal    = round2(monthlyServices + monthlyExtras);
+
+    $('#monthlyServicesPill').textContent = fmtUSD(monthlyServices) + '/mo';
+    $('#monthlyExtrasPill').textContent   = fmtUSD(monthlyExtras)   + '/mo';
+    $('#masterMonthlyTotalPill').textContent = fmtUSD(monthlyTotal) + '/mo';
+
+    const grandDue = round2(adjTotal + extrasMasterTotal + extrasBlocksTotal);
     const payments = equalPayments(grandDue, monthsVal);
     $('#masterPaymentPill').textContent = `${monthsVal} payments of ${fmtUSD(payments[0]||0)}`;
 
@@ -609,7 +666,7 @@ function renderAll(){
 /* Blocks */
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
-  const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{} };
+  const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{}, owlQty:0, owlPrice:undefined };
   blocks.push(b);
   $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
   renderAll();
@@ -643,7 +700,7 @@ function wireEvents(){
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
 
-  // Extra services
+  // Extra services (master)
   $('#owlQty').addEventListener('input', renderAll);
   $('#owlPrice').addEventListener('input', renderAll);
 
@@ -677,8 +734,12 @@ function wireEvents(){
       return;
     }
   });
-  blocksEl.addEventListener('input', (e)=>{ if (/^(pins-|acres-|floor-|dpp-)/.test(e.target.id)) renderAll(); });
-  blocksEl.addEventListener('change', (e)=>{ if (/^(pins-|acres-|floor-|dpp-|include-)/.test(e.target.id)) renderAll(); });
+  blocksEl.addEventListener('input', (e)=>{
+    if (/^(pins-|acres-|floor-|dpp-|owlQty-|owlPrice-)/.test(e.target.id)) renderAll();
+  });
+  blocksEl.addEventListener('change', (e)=>{
+    if (/^(pins-|acres-|floor-|dpp-|include-|owlQty-|owlPrice-)/.test(e.target.id)) renderAll();
+  });
 }
 
 /* Boot */
