@@ -41,17 +41,9 @@
   .bar .left,.bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .btn{
     border:1px solid var(--olive-2);background:var(--olive);color:#fff;
-    border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;font-weight:700;
-    line-height:1
+    border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;font-weight:700;line-height:1
   }
   .btn:hover{background:var(--olive-2)}
-
-  /* Inline edit controls shown when editing */
-  .edit-inline{display:none;align-items:center;gap:8px}
-  .edit-inline .muted{display:inline-flex;align-items:center;font-weight:700;opacity:.9}
-  .edit-inline select{
-    padding:6px 8px;height:32px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;color:#102312
-  }
 
   .pill{
     background:#e7f1dc;color:#234018;border:1px solid #cfe0b8;border-radius:999px;font-size:12px;font-weight:700
@@ -87,6 +79,14 @@
   .chip label{font-size:11px;opacity:.85}
   .chip input{
     width:80px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
+  }
+
+  /* Edit inline block (below Master Pass Control) */
+  .edit-under{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .edit-inline{display:none;align-items:center;gap:8px}
+  .edit-inline .muted{display:inline-flex;align-items:center;font-weight:700;opacity:.9}
+  .edit-inline select{
+    padding:6px 8px;height:32px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;color:#102312
   }
 
   .muted{color:#4a5d4c}
@@ -152,28 +152,12 @@
 <div class="wrap">
   <div class="bar">
     <div class="left">
-      <!-- EDIT moved to very top-left -->
-      <button class="btn cust-hide" id="editToggle" type="button">Edit</button>
-
-      <!-- Appears when editing, aligned nicely -->
-      <span id="editByWrap" class="cust-hide edit-inline">
-        <span class="muted">Edit by</span>
-        <select id="editBy">
-          <option value="total" selected>Total</option>
-          <option value="peracre">Cost / Acre</option>
-        </select>
-        <button class="btn" id="editSave" type="button">Done</button>
-        <button class="btn" id="editCancel" type="button">Cancel</button>
-      </span>
-
-      <div style="font-weight:900;letter-spacing:.02em;margin-left:6px">SERVICES PAGE</div>
-
+      <div style="font-weight:900;letter-spacing:.02em">SERVICES PAGE</div>
       <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;margin-left:6px">
         <input type="checkbox" id="customerToggle" />
         <span>Customer view</span>
       </label>
     </div>
-
     <div class="right">
       <span class="pill inline" id="blockCountPill">Blocks: 0 (active 0)</span>
       <button class="btn" id="addBlockBtn" type="button">Add New Service</button>
@@ -193,6 +177,20 @@
           <div class="row-controls">
             <button class="pill-btn" id="masterRemovePass" type="button">− Pass All</button>
             <button class="pill-btn" id="masterAddPass" type="button">+ Pass All</button>
+          </div>
+
+          <!-- EDIT controls now below master pass control (left) -->
+          <div class="edit-under">
+            <button class="pill-btn" id="editToggle" type="button">Edit</button>
+            <span id="editByWrap" class="edit-inline">
+              <span class="muted">Edit by</span>
+              <select id="editBy">
+                <option value="total" selected>Total</option>
+                <option value="peracre">Cost / Acre</option>
+              </select>
+              <button class="pill-btn" id="editSave" type="button">Done</button>
+              <button class="pill-btn" id="editCancel" type="button">Cancel</button>
+            </span>
           </div>
         </div>
 
@@ -365,8 +363,8 @@ function blockHTML(b){
             <tr>
               <th style="width:120px">Pass</th>
               <th>Cost / Acre</th>
-              <th>Hours (total ÷ 180)</th>
-              <th>Total Cost (this pass × acres)</th>
+              <th>Hours</th>
+              <th>Total Cost</th>
             </tr>
           </thead>
           <tbody id="rows-${b.id}"></tbody>
@@ -449,7 +447,7 @@ function renderAll(){
     let adjPct  = Math.trunc(Number($('#masterAdjPct')?.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
     const customerMode = document.body.classList.contains('customer');
 
-    // Edit UI show/hide (top-left)
+    // Edit UI show/hide under master pass control
     $('#editByWrap').style.display = (editState.active ? 'inline-flex' : 'none');
     $('#editToggle').style.display = (editState.active ? 'none' : 'inline-flex');
 
@@ -485,7 +483,7 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-        const hoursForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/180), 0);
+        const hoursForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/120), 0);  // ÷120
         $(`#pillHours-${b.id}`).textContent = hoursForPill.toFixed(2);
         $(`#base-${b.id}`).textContent      = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
         $(`#passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
@@ -495,7 +493,7 @@ function renderAll(){
         let blockHours = 0;
         for (const p of q.passes){
           const passTotal = round2(p.perAcre * acres);
-          const hours     = round2(passTotal / 180);
+          const hours     = round2(passTotal / 120);  // ÷120
           blockHours += hours;
 
           const tr = document.createElement('tr');
@@ -536,7 +534,7 @@ function renderAll(){
       const row = masterRows[i]; if (!row) continue;
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
-      const hoursPass = round2(baseRowTotal/180);
+      const hoursPass = round2(baseRowTotal/120); // ÷120
       const adjPerAcre = perAcre;
       const adjRowTotal= baseRowTotal;
 
@@ -602,7 +600,7 @@ function wireEvents(){
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // Edit controls (top-left)
+  // Edit controls (below master pass control)
   $('#editToggle').addEventListener('click', ()=>{
     editState.active = true;
     clearMasterError();
