@@ -57,7 +57,7 @@
 
   .inputs{padding:8px 12px;background:var(--surface)}
   .controls-row{
-    display:flex;align-items:flex-end;gap:10px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;padding-bottom:2px
+    display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;white-space:nowrap;overflow-x:auto;padding-bottom:2px
   }
   .controls-row>*{flex:0 0 auto}
 
@@ -81,8 +81,8 @@
     width:80px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
   }
 
-  /* Edit inline block (below Master Pass Control) */
-  .edit-under{display:flex;align-items:center;gap:8px;margin-top:8px}
+  /* Edit inline block (below Master Pass Control, left) */
+  .edit-under{display:flex;align-items:center;gap:8px;margin:8px 0 0 0}
   .edit-inline{display:none;align-items:center;gap:8px}
   .edit-inline .muted{display:inline-flex;align-items:center;font-weight:700;opacity:.9}
   .edit-inline select{
@@ -128,24 +128,8 @@
   .block .row-controls{gap:8px}
   .block .pill-btn{padding:8px 12px}
 
-  .foot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);background:var(--surface)}
-
-  /* ===== Customer view rules ===== */
-  body.customer .cust-hide{display:none !important}    /* hide advanced top controls */
-  .col-adj-peracre,.col-hours,.col-adj-total{display:table-cell}
-  body.customer .col-adj-peracre,
-  body.customer .col-hours,
-  body.customer .col-adj-total{display:none}
-
-  /* Only show Pins + Acres in each block pill header when in customer view */
-  .pill-hours,.pill-floor,.pill-dpp{display:inline}
-  body.customer .pill-hours,
-  body.customer .pill-floor,
-  body.customer .pill-dpp{display:none}
-  .pill-pins,.pill-acres{display:inline}
-
-  /* Inputs inside master table when editing */
-  .edit-input{width:120px}
+  .foot{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface)}
+  .foot-topline{display:flex;align-items:center;gap:8px}
 </style>
 </head>
 <body>
@@ -169,7 +153,7 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- left→right: Master Pass Control, Months, Min/acre, $/pin -->
+    <!-- One row: Master Pass Control, Months, Min/acre, $/pin -->
     <div class="inputs">
       <div class="controls-row">
         <div class="group cust-hide">
@@ -177,20 +161,6 @@
           <div class="row-controls">
             <button class="pill-btn" id="masterRemovePass" type="button">− Pass All</button>
             <button class="pill-btn" id="masterAddPass" type="button">+ Pass All</button>
-          </div>
-
-          <!-- EDIT controls now below master pass control (left) -->
-          <div class="edit-under">
-            <button class="pill-btn" id="editToggle" type="button">Edit</button>
-            <span id="editByWrap" class="edit-inline">
-              <span class="muted">Edit by</span>
-              <select id="editBy">
-                <option value="total" selected>Total</option>
-                <option value="peracre">Cost / Acre</option>
-              </select>
-              <button class="pill-btn" id="editSave" type="button">Done</button>
-              <button class="pill-btn" id="editCancel" type="button">Cancel</button>
-            </span>
           </div>
         </div>
 
@@ -207,9 +177,21 @@
           <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
         </div>
       </div>
-    </div>
 
-    <div class="muted" id="masterAcreInfoMuted" style="padding:0 12px 6px">Included acres: — • Included pins: —</div>
+      <!-- Edit block sits BELOW the row, left aligned -->
+      <div class="edit-under">
+        <button class="pill-btn cust-hide" id="editToggle" type="button">Edit</button>
+        <span id="editByWrap" class="edit-inline cust-hide">
+          <span class="muted">Edit by</span>
+          <select id="editBy">
+            <option value="total" selected>Total</option>
+            <option value="peracre">Cost / Acre</option>
+          </select>
+          <button class="pill-btn" id="editSave" type="button">Done</button>
+          <button class="pill-btn" id="editCancel" type="button">Cancel</button>
+        </span>
+      </div>
+    </div>
 
     <div style="padding:0 12px 0">
       <table class="grid">
@@ -218,10 +200,10 @@
             <th style="width:160px">Blocks Contributing</th>
             <th style="width:120px">Pass</th>
             <th>Cost / Acre</th>
-            <th class="col-adj-peracre">Adjusted Cost / Acre</th>
-            <th class="col-hours">Hours</th>
+            <th>Adjusted Cost / Acre</th>
+            <th>Hours</th>
             <th>Total Cost</th>
-            <th class="col-adj-total">Adjusted Total Cost</th>
+            <th>Adjusted Total Cost</th>
           </tr>
         </thead>
         <tbody id="masterPassRows"></tbody>
@@ -230,10 +212,10 @@
             <td id="masterBlocksCell" style="text-align:center" class="muted">—</td>
             <td style="text-align:center"># of Passes</td>
             <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
-            <td class="col-adj-peracre"></td>
-            <td id="masterHoursCell" class="col-hours" style="text-align:right">— h</td>
+            <td></td>
+            <td id="masterHoursCell" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
-            <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
+            <td id="masterAdjCell" style="text-align:right">
               <span class="pill inline" id="masterAdjTotalPill">Adjusted Total: $—</span>
             </td>
           </tr>
@@ -241,9 +223,15 @@
       </table>
     </div>
 
-    <div class="foot" style="justify-content:flex-start">
-      <span class="muted">Payment plan:</span>
-      <span class="pill inline" id="masterPaymentPill">—</span>
+    <!-- Included pins/acres moved to the bottom, above payment plan -->
+    <div class="foot">
+      <div class="foot-topline">
+        <span class="muted" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
+      </div>
+      <div class="foot-topline">
+        <span class="muted">Payment plan:</span>
+        <span class="pill inline" id="masterPaymentPill">—</span>
+      </div>
     </div>
   </div>
 
@@ -447,7 +435,7 @@ function renderAll(){
     let adjPct  = Math.trunc(Number($('#masterAdjPct')?.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
     const customerMode = document.body.classList.contains('customer');
 
-    // Edit UI show/hide under master pass control
+    // Edit UI show/hide (below Master Pass Control)
     $('#editByWrap').style.display = (editState.active ? 'inline-flex' : 'none');
     $('#editToggle').style.display = (editState.active ? 'none' : 'inline-flex');
 
@@ -483,7 +471,7 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-        const hoursForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/120), 0);  // ÷120
+        const hoursForPill = q.passes.reduce((s,p)=> s + round2((p.perAcre*acres)/120), 0); // ÷120
         $(`#pillHours-${b.id}`).textContent = hoursForPill.toFixed(2);
         $(`#base-${b.id}`).textContent      = `Base: ${fmtUSD(round2(base.basePerAcre))} / acre`;
         $(`#passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
@@ -525,7 +513,6 @@ function renderAll(){
     }
 
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
-    $('#masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)} • Included pins: ${includedPins}`;
 
     // master table
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
@@ -539,6 +526,7 @@ function renderAll(){
       const adjRowTotal= baseRowTotal;
 
       baseTotal += baseRowTotal; masterHours += hoursPass;
+
       const displayTotal = document.body.classList.contains('customer') ? adjRowTotal : baseRowTotal;
       const contribText = `${row.contrib||0}/${activeBlocks}`;
 
@@ -554,10 +542,10 @@ function renderAll(){
         <td style="text-align:center">${contribText}</td>
         <td style="text-align:center">Pass ${i+1}</td>
         <td>${perAcreCell}</td>
-        <td class="col-adj-peracre">${fmtUSD(adjPerAcre)}</td>
-        <td class="col-hours">${hoursPass.toFixed(2)} h</td>
+        <td>${fmtUSD(adjPerAcre)}</td>
+        <td>${hoursPass.toFixed(2)} h</td>
         <td>${totalCell}</td>
-        <td class="col-adj-total">${fmtUSD(adjRowTotal)}</td>`;
+        <td>${fmtUSD(adjRowTotal)}</td>`;
       if (i===0) tr.classList.add('row-hi');
       mBody.appendChild(tr);
     }
@@ -565,10 +553,28 @@ function renderAll(){
     $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
     $('#masterBlocksCell').textContent = `${activeBlocks}/${blocks.length}`;
 
+    // included acres/pins now shown at bottom
+    const includedPins = Array.from(document.querySelectorAll('[id^="hdrPins-"]')).reduce((sum, el, i)=>{
+      const id = Number((el.id.match(/\d+$/)||[0])[0]);
+      const include = document.querySelector(`#include-${id}`)?.checked;
+      const pinsVal = parseInt(el.textContent.replace(/\D+/g,'')) || 0;
+      return include ? sum + pinsVal : sum;
+    }, 0);
+
+    const includedAcres = Array.from(document.querySelectorAll('[id^="hdrAcres-"]')).reduce((sum, el, i)=>{
+      const id = Number((el.id.match(/\d+$/)||[0])[0]);
+      const include = document.querySelector(`#include-${id}`)?.checked;
+      const acresText = el.textContent.split(':')[1]?.trim() || '0';
+      const acresVal = Number(acresText) || 0;
+      return include ? sum + acresVal : sum;
+    }, 0);
+
+    $('#masterAcreInfoMuted').textContent = `Included acres: ${round2(includedAcres)} • Included pins: ${includedPins}`;
+
     // months & payments
     const monthsEl = $('#masterMonths');
     let months = Number(monthsEl.value);
-    const maxPass = masterRows.length || 1;
+    const maxPass = mBody.children.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(months)){ months = maxPass; monthsEl.value = months; }
     months = clamp(Math.trunc(months), 1, 12); if (String(months)!==monthsEl.value) monthsEl.value = months;
 
