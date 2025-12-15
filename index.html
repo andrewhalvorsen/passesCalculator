@@ -5,129 +5,160 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Pass Pricing — Blocks</title>
 <style>
-  :root{--yellow:#fff36a;--ink:#111827;--accent:#2563eb;--border:#e5e7eb}
-  *{box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
-       margin:0;background:#f8fafc;color:var(--ink)}
-  .wrap{max-width:1100px;margin:16px auto;background:#fff;border:1px solid var(--border);
-        border-radius:14px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+  /* ===== Palette inspired by your mock ===== */
+  :root{
+    --surface:#ffffff;
+    --bg:#f4f6f3;
+    --ink:#112015;
 
-  /* Top bar */
-  .bar{background:#d9d9d9;padding:6px 12px;font-weight:700;letter-spacing:.08em;color:#444;
-       display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-  .bar .left,.bar .right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .btn{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:6px 10px;font-size:14px;cursor:pointer}
-  .pill{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;font-size:12px;font-weight:600}
-  .pill.inline{padding:4px 8px}
-
-  /* Master summary */
-  .card{border-top:1px solid var(--border)}
-  .header{background:var(--yellow);padding:12px 12px;text-align:center;border-bottom:1px solid var(--border)}
-  .header h1{margin:0;font-size:22px;font-weight:800}
-
-  .inputs{padding:8px 12px;background:#fff}
-
-  /* Strict horizontal control row */
-  .controls-row{
-    display:flex;align-items:flex-end;gap:8px;flex-wrap:nowrap;
-    overflow-x:auto;white-space:nowrap;padding-bottom:2px
+    --forest:#1f3823;          /* dark panel/pill */
+    --forest-2:#2a4a30;        /* alt dark */
+    --olive:#7ea447;           /* action pill/button */
+    --olive-2:#6a8f34;         /* hover/darker */
+    --chip-bg:#eef3ea;         /* input chip bg */
+    --chip-border:#d7e0cf;
+    --table-head:#e9f2e4;
+    --border:#dfe7d8;
+    --accent:#7ea447;
+    --warn-bg:#fef2f2;
+    --warn-bd:#fecaca;
+    --yellow:#e8f29b;          /* keep subtle highlight for pass 1 */
   }
-  .controls-row > *{flex:0 0 auto}
 
-  /* Master Pass Control */
+  *{box-sizing:border-box}
+  body{
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+    margin:0;background:var(--bg);color:var(--ink)
+  }
+  .wrap{
+    max-width:1100px;margin:16px auto;background:var(--surface);
+    border:1px solid var(--border);border-radius:14px;overflow:hidden;
+    box-shadow:0 8px 24px rgba(0,0,0,.06)
+  }
+
+  /* ===== Top bar ===== */
+  .bar{
+    background:var(--forest);color:#fff;
+    padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap
+  }
+  .bar .left,.bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .btn{
+    border:1px solid var(--olive-2);background:var(--olive);color:#fff;
+    border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;font-weight:700
+  }
+  .btn:hover{background:var(--olive-2)}
+  .pill{
+    background:#e7f1dc;color:#234018;border:1px solid #cfe0b8;border-radius:999px;font-size:12px;font-weight:700
+  }
+  .pill.inline{padding:4px 10px}
+
+  /* ===== Master summary ===== */
+  .card{border-top:1px solid var(--border)}
+  .header{background:var(--forest-2);padding:14px 12px;text-align:center}
+  .header h1{margin:0;font-size:22px;font-weight:800;color:#fff}
+
+  .inputs{padding:8px 12px;background:var(--surface)}
+  .controls-row{
+    display:flex;align-items:flex-end;gap:10px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;padding-bottom:2px
+  }
+  .controls-row>*{flex:0 0 auto}
+
   .group{display:flex;flex-direction:column;gap:4px;min-width:max-content}
-  .group .label{font-size:11px;color:#374151;font-weight:700;letter-spacing:.02em;margin-left:2px}
-  .row-controls{display:flex;gap:6px;align-items:center}
+  .group .label{font-size:11px;color:#e6f4df;font-weight:700;letter-spacing:.02em}
+  .row-controls{display:flex;gap:8px;align-items:center}
   .pill-btn{
     display:inline-flex;align-items:center;gap:6px;
-    background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
-    padding:6px 10px;font-weight:700;color:#111827;white-space:nowrap;cursor:pointer
+    background:var(--olive);border:1px solid var(--olive-2);color:#fff;
+    border-radius:9999px;padding:8px 12px;font-weight:800;cursor:pointer
   }
-  .pill-btn:active{transform:translateY(1px)}
-
-  /* Compact chips (Months, Min $/acre, $/pin) */
+  .pill-btn:hover{background:var(--olive-2)}
   .chip{
-    display:inline-flex;align-items:center;gap:6px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:9999px;
-    padding:4px 8px;font-weight:600;white-space:nowrap
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:9999px;
+    padding:6px 10px;font-weight:700;color:#1e3a22
   }
-  .chip label{font-size:11px;color:#374151}
-  .chip input{width:70px;font-size:13px;padding:3px 6px;border:1px solid #d1d5db;border-radius:8px;outline:none}
-  .chip input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+  .chip label{font-size:11px;opacity:.85}
+  .chip input{
+    width:80px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
+  }
 
-  /* Edit bar */
-  .editbar{display:flex;align-items:center;gap:8px;justify-content:flex-end;padding:4px 12px}
-  .editbar select,.editbar input[type=number]{padding:4px 6px;border:1px solid #d1d5db;border-radius:8px}
-  .editbar .pill-btn{padding:6px 10px;font-size:13px}
+  .editbar{display:flex;align-items:center;gap:8px;justify-content:flex-end;padding:6px 12px}
+  .editbar select{padding:6px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff}
 
-  .muted{color:#6b7280}
+  .muted{color:#4a5d4c}
 
-  /* Tables (tight) */
+  /* ===== Tables ===== */
   .grid{width:100%;border-collapse:collapse;margin:6px 0 10px}
-  .grid th,.grid td{border:1px solid var(--border);padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums}
+  .grid th,.grid td{border:1px solid var(--border);padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums}
   .grid th:first-child,.grid td:first-child{text-align:center}
-  .grid thead th{background:#eef2ff;font-weight:700}
-  .grid tfoot td{background:#f3f4f6;font-weight:700;vertical-align:top}
+  .grid thead th{background:var(--table-head);font-weight:800;color:#1d3522}
+  .grid tfoot td{background:#f3f7ef;font-weight:800}
   .row-hi{background:var(--yellow)}
-  .notice{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:10px;display:none;margin:0 12px 8px}
+  .notice{color:#7a1111;background:var(--warn-bg);border:1px solid var(--warn-bd);padding:8px 10px;border-radius:10px;display:none;margin:0 12px 8px}
 
-  /* Blocks (tight spacing) */
-  .blocks{padding:0 12px 10px}
-  .block{border:none;border-radius:12px;margin:4px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
+  /* ===== Blocks ===== */
+  .blocks{padding:0 12px 12px}
+  .block{border:none;border-radius:12px;margin:6px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
   .inactive{opacity:.55; filter:grayscale(.4)}
   .collapsed .block-body{display:none}
 
-  /* Collapsible header pill — darker brown, no border */
-  .title{background:#fff;padding:0}
+  /* Block pill header (now forest green) */
+  .title{background:var(--surface);padding:0}
   .toggle-zone{
-    margin:4px;
-    display:flex;align-items:center;justify-content:space-between;gap:8px;
-    background:#6f4a2c;border:none;border-radius:9999px;padding:8px 12px;
-    cursor:pointer;outline:none;color:#fff;box-shadow:none;-webkit-tap-highlight-color:transparent
+    margin:6px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--forest);border:none;border-radius:9999px;padding:10px 14px;
+    cursor:pointer;color:#fff;user-select:none
   }
-  .toggle-zone:focus{outline:none;box-shadow:none}
   .toggle-zone .muted{color:rgba(255,255,255,.9)}
-  .tz-left{display:flex;align-items:center;gap:10px;font-weight:800}
+  .tz-left{display:flex;align-items:center;gap:10px;font-weight:900}
   .tz-right{display:flex;align-items:center;gap:12px}
   .switch{display:flex;align-items:center;gap:6px;font-size:12px}
   .switch input{transform:scale(1.05)}
 
-  /* Block internals (still tight) */
-  .block .inputs{padding:6px 10px}
-  .block .controls-row{gap:6px}
-  .block .chip{padding:4px 8px;margin-right:6px}
-  .block .chip:last-child{margin-right:0}
-  .block .chip input{width:68px;font-size:13px;padding:3px 6px}
-  .block .row-controls{gap:6px}
-  .block .pill-btn{padding:6px 10px}
+  /* Block internals */
+  .block .inputs{padding:8px 10px}
+  .block .controls-row{gap:8px}
+  .block .chip{padding:6px 10px}
+  .block .chip input{width:78px}
+  .block .row-controls{gap:8px}
+  .block .pill-btn{padding:8px 12px}
 
-  .foot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);background:#fff}
+  .foot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);background:var(--surface)}
 
-  /* Customer view */
-  .cust-hide{display:block}
-  body.customer .cust-hide{display:none !important}   /* hide advanced top controls */
-  /* Do NOT hide blocks in customer view anymore */
+  /* ===== Customer view rules (HIDE pill details except Pins & Acres) ===== */
+  body.customer .cust-hide{display:none !important}              /* hide advanced top controls */
+  /* Keep master table but hide adjusted/per-hour columns (already set below) */
   .col-adj-peracre,.col-hours,.col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
   body.customer .col-hours,
   body.customer .col-adj-total{display:none}
 
+  /* Only show Pins + Acres in each block pill header when in customer view */
+  .pill-hours,.pill-floor,.pill-dpp{display:inline}
+  body.customer .pill-hours,
+  body.customer .pill-floor,
+  body.customer .pill-dpp{display:none}          /* hide hours, floor, $/pin on pill */
+  /* show pins/acres */
+  .pill-pins,.pill-acres{display:inline}
+
   /* Inputs inside master table when editing */
-  .edit-input{width:110px}
+  .edit-input{width:120px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="bar">
     <div class="left">
-      <div>NAME</div>
-      <label style="display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer">
+      <div style="font-weight:900;letter-spacing:.02em">SERVICES PAGE</div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
         <input type="checkbox" id="customerToggle" />
         <span>Customer view</span>
       </label>
     </div>
     <div class="right">
       <span class="pill inline" id="blockCountPill">Blocks: 0 (active 0)</span>
-      <button class="btn" id="addBlockBtn" type="button">+ Add Block</button>
+      <button class="btn" id="addBlockBtn" type="button">Add New Service</button>
     </div>
   </div>
 
@@ -136,7 +167,7 @@
     <div class="header"><h1>All Blocks — Summary</h1></div>
     <div id="masterErr" class="notice"></div>
 
-    <!-- EXACT ORDER: [Master Pass Control] [Months] [Min $/acre] [$ / pin] -->
+    <!-- left→right: Master Pass Control, Months, Min/acre, $/pin -->
     <div class="inputs">
       <div class="controls-row">
         <div class="group cust-hide">
@@ -162,7 +193,7 @@
       </div>
     </div>
 
-    <!-- Edit controls (now pill-style buttons) -->
+    <!-- Edit controls (pill-style) -->
     <div class="editbar cust-hide">
       <button class="pill-btn" id="editToggle" type="button">Edit</button>
       <span class="muted">Edit by:</span>
@@ -170,7 +201,7 @@
         <option value="total" selected>Total</option>
         <option value="peracre">Cost / Acre</option>
       </select>
-      <button class="pill-btn" id="editSave" type="button" style="display:none">Save</button>
+      <button class="pill-btn" id="editSave" type="button" style="display:none">Done</button>
       <button class="pill-btn" id="editCancel" type="button" style="display:none">Cancel</button>
     </div>
 
@@ -180,7 +211,7 @@
       <table class="grid">
         <thead>
           <tr>
-            <th style="width:150px">Blocks Contributing</th>
+            <th style="width:160px">Blocks Contributing</th>
             <th style="width:120px">Pass</th>
             <th>Cost / Acre</th>
             <th class="col-adj-peracre">Adjusted Cost / Acre</th>
@@ -219,7 +250,7 @@
 <script>
 "use strict";
 
-/* ========= Helpers ========= */
+/* ===== Helpers ===== */
 const $ = sel => document.querySelector(sel);
 const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n||0);
 const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100;
@@ -232,7 +263,7 @@ function equalPayments(total, n){
   return list;
 }
 
-/* ========= Core calc ========= */
+/* ===== Core calc ===== */
 function calcBase(pinCount, acres, dollarsPerPin){
   if (!Number.isFinite(pinCount) || Math.trunc(pinCount)!==pinCount || pinCount<0) throw new Error('Pin count must be a whole number >= 0');
   if (!(acres>0)) throw new Error('Acres must be > 0');
@@ -258,27 +289,27 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, 
   return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
 }
 
-/* ========= State ========= */
+/* ===== State ===== */
 let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides?:{[pass]:rate}}
 let blockSeq = 1;
 let masterMonthsTouched = false;
-
 const editState = { active:false, by:'total' };
 
-/* ========= Block template ========= */
+/* ===== Block template ===== */
 function blockHTML(b){
   return `
   <div class="block${b.collapsed?' collapsed':''}" data-block-id="${b.id}">
     <div class="title">
       <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
         <div class="tz-left">
-          <span>Block ${b.id} — <span id="pillHours-${b.id}">0.00</span> h</span>
+          <span class="pill-title">Block ${b.id}</span>
+          <span class="pill-hours">— <span id="pillHours-${b.id}">0.00</span> h</span>
         </div>
         <div class="tz-right">
-          <span class="muted" id="hdrPins-${b.id}">Pins: —</span>
-          <span class="muted" id="hdrAcres-${b.id}">Acres: —</span>
-          <span class="muted" id="effectiveFloor-${b.id}"></span>
-          <span class="muted" id="effectiveDpp-${b.id}"></span>
+          <span class="muted pill-pins"  id="hdrPins-${b.id}">Pins: —</span>
+          <span class="muted pill-acres" id="hdrAcres-${b.id}">Acres: —</span>
+          <span class="muted pill-floor" id="effectiveFloor-${b.id}"></span>
+          <span class="muted pill-dpp"   id="effectiveDpp-${b.id}"></span>
           <label class="switch" id="include-wrap-${b.id}">
             <input type="checkbox" id="include-${b.id}" ${b.include?'checked':''}>
             <span id="include-label-${b.id}">Include in totals</span>
@@ -292,7 +323,6 @@ function blockHTML(b){
 
       <div class="inputs">
         <div class="controls-row">
-          <!-- Pills inside each block -->
           <div class="chip">
             <label for="pins-${b.id}">Pins</label>
             <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}">
@@ -348,12 +378,12 @@ function blockHTML(b){
   </div>`;
 }
 
-/* ========= Editing / reverse engineering ========= */
+/* ===== Edit / reverse-engineer (unchanged logic) ===== */
 function clearMasterError(){ const e=$('#masterErr'); if(e){e.style.display='none'; e.textContent='';} }
 function setMasterError(msg){ const e=$('#masterErr'); if(e){ e.style.display='block'; e.textContent=msg; } }
 
 function gatherPassContext(passIndex){
-  const ctx = []; // {b, acres, effFloor, rate}
+  const ctx = [];
   for (const b of blocks){
     if (!b.include) continue;
     const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
@@ -372,8 +402,6 @@ function gatherPassContext(passIndex){
   }
   return ctx;
 }
-
-/* scale to target total, respecting floors; writes overrides */
 function distributePassToTarget(passIndex, targetTotal){
   clearMasterError();
   const ctx = gatherPassContext(passIndex);
@@ -382,7 +410,7 @@ function distributePassToTarget(passIndex, targetTotal){
   const sumFloors = ctx.reduce((s,x)=> s + x.effFloor * x.acres, 0);
 
   if (targetTotal < sumFloors - 0.01){
-    setMasterError(`Target for Pass ${passIndex} is below minimum floors (${fmtUSD(sumFloors)}). Using floors instead.`);
+    setMasterError(`Target for Pass ${passIndex} is below floors (${fmtUSD(sumFloors)}). Using floors instead.`);
     for (const x of ctx) setOverride(x.b, passIndex, x.effFloor);
     return;
   }
@@ -391,30 +419,23 @@ function distributePassToTarget(passIndex, targetTotal){
   for (const x of ctx){ x.newRate = Math.max(x.effFloor, round2(x.rate * f)); }
   let achieved = ctx.reduce((s,x)=> s + x.newRate * x.acres, 0);
 
-  // iterative correction to hit target within a cent
   for (let iter=0; iter<10 && Math.abs(achieved - targetTotal) > 0.01; iter++){
     const delta = targetTotal - achieved;
-    const free = delta >= 0
-      ? ctx
-      : ctx.filter(x => x.newRate > x.effFloor + 1e-9);
+    const free = delta >= 0 ? ctx : ctx.filter(x => x.newRate > x.effFloor + 1e-9);
     if (free.length===0) break;
     const sumA = free.reduce((s,x)=> s + x.acres, 0) || 1;
     const dPerAcre = delta / sumA;
-    for (const x of free){
-      x.newRate = Math.max(x.effFloor, round2(x.newRate + dPerAcre));
-    }
+    for (const x of free){ x.newRate = Math.max(x.effFloor, round2(x.newRate + dPerAcre)); }
     achieved = ctx.reduce((s,x)=> s + x.newRate * x.acres, 0);
   }
-
   for (const x of ctx) setOverride(x.b, passIndex, x.newRate);
 }
-
 function setOverride(b, passIndex, rate){
   if (!b.overrides) b.overrides = {};
   b.overrides[passIndex] = round2(rate);
 }
 
-/* ========= Rendering ========= */
+/* ===== Render ===== */
 function renderAll(){
   try{
     const floor = (n => (Number.isFinite(n)&&n>=0?round2(n):20))(Number($('#masterFloor').value));
@@ -429,7 +450,7 @@ function renderAll(){
     $('#editToggle').textContent   = editState.active ? 'Editing…' : 'Edit';
     $('#editBy').disabled          = !editState.active;
 
-    const masterRows = []; // each index: { total, acres, contrib }
+    const masterRows = [];
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
 
     for (const b of blocks){
@@ -449,19 +470,11 @@ function renderAll(){
         const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0) ? round2(Number(floorIn.value)) : floor;
         const effDpp   = (dppIn.value!=='' && Number.isFinite(Number(dppIn.value))   && Number(dppIn.value)  >=0) ? round2(Number(dppIn.value))   : dpp;
 
-        // Header pill meta
+        // pill meta
         $(`#hdrPins-${b.id}`).textContent  = `Pins: ${Number.isFinite(pins)?pins:'—'}`;
         $(`#hdrAcres-${b.id}`).textContent = `Acres: ${Number.isFinite(acres)?round2(acres).toFixed(2):'—'}`;
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
         $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
-
-        // Change include label wording in customer mode
-        const labelSpan = document.querySelector(`#include-label-${b.id}`);
-        if (labelSpan){
-          labelSpan.textContent = customerMode
-            ? (include ? 'Remove from totals' : 'Add back to totals')
-            : 'Include in totals';
-        }
 
         const base = calcBase(pins, acres, effDpp);
         let passCount = base.autoCount + (b.addedPasses||0) - (b.removedPasses||0);
@@ -513,7 +526,7 @@ function renderAll(){
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
     $('#masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)} • Included pins: ${includedPins}`;
 
-    // Master table
+    // master table
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, masterHours = 0;
     for (let i=0;i<masterRows.length;i++){
@@ -521,19 +534,17 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjPerAcre = round2(perAcre * adjFactor);
-      const adjRowTotal= round2(baseRowTotal * adjFactor);
+      const adjPerAcre = round2(perAcre * (1 + (adjPct/100)));
+      const adjRowTotal= round2(baseRowTotal * (1 + (adjPct/100)));
       baseTotal += baseRowTotal; masterHours += hoursPass;
       const displayTotal = document.body.classList.contains('customer') ? adjRowTotal : baseRowTotal;
       const contribText = `${row.contrib||0}/${activeBlocks}`;
 
       const tr = document.createElement('tr');
-
-      const perAcreCell = editState.active && editBy==='peracre'
+      const perAcreCell = editState.active && editState.by==='peracre'
         ? `<input class="edit-input edit-peracre" data-pass="${i+1}" type="number" step="0.01" value="${perAcre}">`
         : fmtUSD(perAcre);
-
-      const totalCell = editState.active && editBy==='total'
+      const totalCell = editState.active && editState.by==='total'
         ? `<input class="edit-input edit-total" data-pass="${i+1}" type="number" step="0.01" value="${baseRowTotal}">`
         : fmtUSD(displayTotal);
 
@@ -552,7 +563,7 @@ function renderAll(){
     $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
     $('#masterBlocksCell').textContent = `${activeBlocks}/${blocks.length}`;
 
-    // Months & payments
+    // months & payments
     const monthsEl = $('#masterMonths');
     let months = Number(monthsEl.value);
     const maxPass = masterRows.length || 1;
@@ -562,15 +573,12 @@ function renderAll(){
     const adjTotal = round2(baseTotal * (1 + (adjPct/100)));
     $('#masterBaseTotal').textContent = fmtUSD(document.body.classList.contains('customer') ? adjTotal : round2(baseTotal));
     $('#masterAdjTotalPill').textContent = `Adjusted Total: ${fmtUSD(adjTotal)}`;
-
     const payments = equalPayments(adjTotal, months);
     $('#masterPaymentPill').textContent = `${months} payments of ${fmtUSD(payments[0]||0)}`;
-  }catch(e){
-    console.error(e);
-  }
+  }catch(e){ console.error(e); }
 }
 
-/* ========= Blocks ========= */
+/* ===== Blocks ===== */
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
   const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{} };
@@ -579,36 +587,25 @@ function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   renderAll();
 }
 
-/* ========= Events ========= */
+/* ===== Events ===== */
 function wireEvents(){
-  // Customer view toggle
   $('#customerToggle').addEventListener('change', (e)=>{
     document.body.classList.toggle('customer', e.target.checked);
     renderAll();
   });
 
-  // Master chips
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // Edit controls (pill-style buttons)
-  $('#editToggle').addEventListener('click', ()=>{
-    editState.active = !editState.active;
-    clearMasterError();
-    renderAll();
-  });
+  // Edit controls
+  $('#editToggle').addEventListener('click', ()=>{ editState.active = !editState.active; clearMasterError(); renderAll(); });
   $('#editBy').addEventListener('change', (e)=>{ editState.by = e.target.value; renderAll(); });
-  $('#editCancel').addEventListener('click', ()=>{
-    editState.active = false;
-    clearMasterError();
-    renderAll();
-  });
+  $('#editCancel').addEventListener('click', ()=>{ editState.active = false; clearMasterError(); renderAll(); });
   $('#editSave').addEventListener('click', ()=>{
     try{
       clearMasterError();
-      const by = editState.by;
-      if (by==='total'){
+      if (editState.by==='total'){
         document.querySelectorAll('.edit-total').forEach(inp=>{
           const passIndex = Number(inp.dataset.pass);
           const val = Number(inp.value);
@@ -621,30 +618,17 @@ function wireEvents(){
           if (!Number.isFinite(perAcre)) return;
           const ctx = gatherPassContext(passIndex);
           const sumAcres = ctx.reduce((s,x)=> s + x.acres, 0);
-          const targetTotal = round2(perAcre * sumAcres);
-          distributePassToTarget(passIndex, targetTotal);
+          distributePassToTarget(passIndex, round2(perAcre * sumAcres));
         });
       }
-    }finally{
-      editState.active = false;
-      renderAll();
-    }
+    }finally{ editState.active = false; renderAll(); }
   });
 
-  // Master pass control
-  $('#masterRemovePass').addEventListener('click', ()=>{
-    for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; }
-    renderAll();
-  });
-  $('#masterAddPass').addEventListener('click', ()=>{
-    for (const b of blocks){ b.addedPasses = (b.addedPasses||0)+1; }
-    renderAll();
-  });
+  $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
+  $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
 
-  // Add block
   $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
 
-  // Blocks delegation
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
@@ -691,7 +675,7 @@ function wireEvents(){
   blocksEl.addEventListener('change', (e)=>{ if (/^(pins-|acres-|floor-|dpp-|include-)/.test(e.target.id)) renderAll(); });
 }
 
-/* ========= Boot ========= */
+/* ===== Boot ===== */
 (function start(){
   wireEvents();
   addNewBlock({ pins:400, acres:54, collapsed:false });
