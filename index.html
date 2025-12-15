@@ -80,7 +80,7 @@
   }
 
   .muted{color:#e8f5e5} /* light text for green pill headers */
-  .accent{color:var(--labelGreen);font-weight:800} /* use this for breakdown labels */
+  .accent{color:var(--labelGreen);font-weight:800} /* labels in summary */
 
   /* Small buttons for master % adjust */
   .micro{
@@ -237,19 +237,15 @@
       </table>
     </div>
 
-    <!-- EXTRA SERVICES (master-level) -->
+    <!-- EXTRA SERVICES (master-level — qty aggregated from blocks) -->
     <div class="inputs" id="extrasSection">
       <div class="controls-row">
         <div class="group">
           <div class="label">Extra services (adds to monthly)</div>
           <div class="row-controls">
-            <span class="pill inline">Owl boxes</span>
+            <span class="pill inline" id="owlQtyTotalPill">Owls: 0</span>
             <div class="chip">
-              <label for="owlQty">Qty</label>
-              <input id="owlQty" type="number" min="0" step="1" value="0" />
-            </div>
-            <div class="chip">
-              <label for="owlPrice">Price</label>
+              <label for="owlPrice">Price / Owl</label>
               <input id="owlPrice" type="number" min="0" step="0.01" value="600" />
             </div>
             <span class="pill inline" id="owlTotalPill">$0.00</span>
@@ -500,7 +496,7 @@ function renderAll(){
 
     const masterRows = []; // idx -> { baseTotal, adjTotal, acres, contrib }
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
-    let extrasBlocksTotal = 0;
+    let blocksOwlsQtySum = 0; // aggregated from blocks (included only)
 
     // Months (used for plan & block pills)
     let months = Number($('#masterMonths').value);
@@ -530,17 +526,15 @@ function renderAll(){
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
         // block-level owl boxes (qty only; price comes from master)
-        const masterOwlPrice = Math.max(0, Number($('#owlPrice').value)||600);
         const bOwlQty = Math.max(0, Math.trunc(Number($(`#owlQty-${b.id}`).value)||0));
-        const bOwlTotal = round2(bOwlQty * masterOwlPrice);
-        if (include) extrasBlocksTotal += bOwlTotal;
+        if (include) blocksOwlsQtySum += bOwlQty;
 
         // header pill meta
         $(`#hdrPins-${b.id}`).textContent  = Number.isFinite(pins)?pins:'—';
         $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
         $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
-        $(`#pillOwls-${b.id}`).textContent       = `${bOwlQty}`; // show COUNT, not cost
+        $(`#pillOwls-${b.id}`).textContent       = `${bOwlQty}`; // show COUNT
 
         // build block table rows + accumulate to master
         const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
@@ -631,11 +625,11 @@ function renderAll(){
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
 
-    // MASTER-LEVEL extras
-    const owlQtyMaster   = Math.max(0, Math.trunc(Number($('#owlQty').value)||0));
+    // MASTER-LEVEL extras (qty aggregated from blocks)
     const owlPriceMaster = Math.max(0, Number($('#owlPrice').value)||0);
-    const extrasMasterTotal = round2(owlQtyMaster * owlPriceMaster);
-    $('#owlTotalPill').textContent = fmtUSD(extrasMasterTotal);
+    const extrasTotal = round2(blocksOwlsQtySum * owlPriceMaster);
+    $('#owlQtyTotalPill').textContent = `Owls: ${blocksOwlsQtySum}`;
+    $('#owlTotalPill').textContent = fmtUSD(extrasTotal);
 
     // months & payments (extras INCLUDED in monthly + payments)
     let monthsVal = Number($('#masterMonths').value);
@@ -644,14 +638,14 @@ function renderAll(){
     monthsVal = clamp(Math.trunc(monthsVal), 1, 12); if (String(monthsVal)!==$('#masterMonths').value) $('#masterMonths').value = monthsVal;
 
     const monthlyServices = round2(adjTotal / monthsVal);
-    const monthlyExtras   = round2((extrasMasterTotal + extrasBlocksTotal) / monthsVal);
+    const monthlyExtras   = round2(extrasTotal / monthsVal);
     const monthlyTotal    = round2(monthlyServices + monthlyExtras);
 
     $('#monthlyServicesPill').textContent = fmtUSD(monthlyServices) + '/mo';
     $('#monthlyExtrasPill').textContent   = fmtUSD(monthlyExtras)   + '/mo';
     $('#masterMonthlyTotalPill').textContent = fmtUSD(monthlyTotal) + '/mo';
 
-    const grandDue = round2(adjTotal + extrasMasterTotal + extrasBlocksTotal);
+    const grandDue = round2(adjTotal + extrasTotal);
     const payments = equalPayments(grandDue, monthsVal);
     $('#masterPaymentPill').textContent = `${monthsVal} payments of ${fmtUSD(payments[0]||0)}`;
 
@@ -697,8 +691,7 @@ function wireEvents(){
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
 
-  // Extra services (master)
-  $('#owlQty').addEventListener('input', renderAll);
+  // Extra services (master) — only price is editable now
   $('#owlPrice').addEventListener('input', renderAll);
 
   // Add block
