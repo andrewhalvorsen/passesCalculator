@@ -591,7 +591,13 @@ function wireEvents(){
     clearMasterError();
     renderAll();
   });
-  $('#editBy').addEventListener('change', (e)=>{ editState.by = e.target.value; });
+
+  // IMPORTANT FIX: re-render immediately when switching "Edit by"
+  $('#editBy').addEventListener('change', (e)=>{
+    editState.by = e.target.value;
+    renderAll();     // <— live update inputs without leaving edit mode
+  });
+
   $('#editCancel').addEventListener('click', ()=>{
     editState.active = false;
     clearMasterError();
