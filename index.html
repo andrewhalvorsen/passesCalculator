@@ -19,9 +19,6 @@
     --chip-border:#d7e0cf;
     --table-head:#e9f2e4;
     --border:#dfe7d8;
-    --accent:#7ea447;
-    --warn-bg:#fef2f2;
-    --warn-bd:#fecaca;
     --yellow:#e8f29b;          /* subtle highlight for pass 1 */
   }
 
@@ -44,9 +41,18 @@
   .bar .left,.bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .btn{
     border:1px solid var(--olive-2);background:var(--olive);color:#fff;
-    border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;font-weight:700
+    border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;font-weight:700;
+    line-height:1
   }
   .btn:hover{background:var(--olive-2)}
+
+  /* Inline edit controls shown when editing */
+  .edit-inline{display:none;align-items:center;gap:8px}
+  .edit-inline .muted{display:inline-flex;align-items:center;font-weight:700;opacity:.9}
+  .edit-inline select{
+    padding:6px 8px;height:32px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;color:#102312
+  }
+
   .pill{
     background:#e7f1dc;color:#234018;border:1px solid #cfe0b8;border-radius:999px;font-size:12px;font-weight:700
   }
@@ -69,7 +75,7 @@
   .pill-btn{
     display:inline-flex;align-items:center;gap:6px;
     background:var(--olive);border:1px solid var(--olive-2);color:#fff;
-    border-radius:9999px;padding:8px 12px;font-weight:800;cursor:pointer
+    border-radius:9999px;padding:8px 12px;font-weight:800;cursor:pointer;line-height:1
   }
   .pill-btn:hover{background:var(--olive-2)}
 
@@ -83,11 +89,6 @@
     width:80px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
   }
 
-  /* Edit bar (Edit-by hidden until editing) */
-  .editbar{display:flex;align-items:center;gap:8px;justify-content:flex-end;padding:6px 12px}
-  .editbar select{padding:6px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff}
-  #editByWrap{display:none} /* shown only when editing */
-
   .muted{color:#4a5d4c}
 
   /* ===== Tables ===== */
@@ -97,7 +98,7 @@
   .grid thead th{background:var(--table-head);font-weight:800;color:#1d3522}
   .grid tfoot td{background:#f3f7ef;font-weight:800}
   .row-hi{background:var(--yellow)}
-  .notice{color:#7a1111;background:var(--warn-bg);border:1px solid var(--warn-bd);padding:8px 10px;border-radius:10px;display:none;margin:0 12px 8px}
+  .notice{color:#7a1111;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:10px;display:none;margin:0 12px 8px}
 
   /* ===== Blocks ===== */
   .blocks{padding:0 12px 12px}
@@ -151,12 +152,28 @@
 <div class="wrap">
   <div class="bar">
     <div class="left">
-      <div style="font-weight:900;letter-spacing:.02em">SERVICES PAGE</div>
-      <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
+      <!-- EDIT moved to very top-left -->
+      <button class="btn cust-hide" id="editToggle" type="button">Edit</button>
+
+      <!-- Appears when editing, aligned nicely -->
+      <span id="editByWrap" class="cust-hide edit-inline">
+        <span class="muted">Edit by</span>
+        <select id="editBy">
+          <option value="total" selected>Total</option>
+          <option value="peracre">Cost / Acre</option>
+        </select>
+        <button class="btn" id="editSave" type="button">Done</button>
+        <button class="btn" id="editCancel" type="button">Cancel</button>
+      </span>
+
+      <div style="font-weight:900;letter-spacing:.02em;margin-left:6px">SERVICES PAGE</div>
+
+      <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;margin-left:6px">
         <input type="checkbox" id="customerToggle" />
         <span>Customer view</span>
       </label>
     </div>
+
     <div class="right">
       <span class="pill inline" id="blockCountPill">Blocks: 0 (active 0)</span>
       <button class="btn" id="addBlockBtn" type="button">Add New Service</button>
@@ -192,20 +209,6 @@
           <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
         </div>
       </div>
-    </div>
-
-    <!-- Edit controls (Edit-by hidden until editing) -->
-    <div class="editbar cust-hide">
-      <button class="pill-btn" id="editToggle" type="button">Edit</button>
-      <span id="editByWrap">
-        <span class="muted">Edit by:</span>
-        <select id="editBy">
-          <option value="total" selected>Total</option>
-          <option value="peracre">Cost / Acre</option>
-        </select>
-        <button class="pill-btn" id="editSave" type="button">Done</button>
-        <button class="pill-btn" id="editCancel" type="button">Cancel</button>
-      </span>
     </div>
 
     <div class="muted" id="masterAcreInfoMuted" style="padding:0 12px 6px">Included acres: — • Included pins: —</div>
@@ -446,8 +449,9 @@ function renderAll(){
     let adjPct  = Math.trunc(Number($('#masterAdjPct')?.value)); if (!Number.isFinite(adjPct)) adjPct = 0;
     const customerMode = document.body.classList.contains('customer');
 
-    // Edit UI show/hide
+    // Edit UI show/hide (top-left)
     $('#editByWrap').style.display = (editState.active ? 'inline-flex' : 'none');
+    $('#editToggle').style.display = (editState.active ? 'none' : 'inline-flex');
 
     const masterRows = [];
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
@@ -533,7 +537,7 @@ function renderAll(){
       const baseRowTotal = round2(row.total);
       const perAcre = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const hoursPass = round2(baseRowTotal/180);
-      const adjPerAcre = perAcre; // no external adj % UI in this version
+      const adjPerAcre = perAcre;
       const adjRowTotal= baseRowTotal;
 
       baseTotal += baseRowTotal; masterHours += hoursPass;
@@ -598,9 +602,9 @@ function wireEvents(){
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // Edit controls
+  // Edit controls (top-left)
   $('#editToggle').addEventListener('click', ()=>{
-    editState.active = !editState.active;
+    editState.active = true;
     clearMasterError();
     renderAll();
   });
@@ -624,7 +628,12 @@ function wireEvents(){
           const passIndex = Number(inp.dataset.pass);
           const perAcre = Number(inp.value);
           if (!Number.isFinite(perAcre)) return;
-          const ctx = gatherPassContext(passIndex);
+          const ctx = (function(){
+            const arr=[]; for (const b of blocks){ if (!b.include) continue;
+              const acres = Number(document.querySelector(`#acres-${b.id}`).value||0);
+              arr.push({acres});
+            } return arr;
+          })();
           const sumAcres = ctx.reduce((s,x)=> s + x.acres, 0);
           distributePassToTarget(passIndex, round2(perAcre * sumAcres));
         });
