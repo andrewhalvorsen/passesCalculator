@@ -95,19 +95,26 @@
   .foot{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface)}
   .foot-topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
-  /* Customer view: hide all editable guts, show only a tiny summary inside block */
+  /* Customer view: hide editors/metrics; show cust-only summary + cust-grid */
   body.customer .cust-hide{display:none !important}
   .col-adj-peracre, .col-adj-total { display:table-cell; }
   body.customer .col-adj-peracre, body.customer .col-adj-total { display:none; }
   .pill-floor, .pill-dpp { display:inline; }
   body.customer .pill-floor, body.customer .pill-dpp { display:none; }
 
-  /* NEW: hide block inputs + metrics + table in customer view; show cust-only summary */
-  .cust-only{display:none}
+  /* ONLY hide the original block grid in customer view */
+  .block-grid{ }
+  body.customer .block-grid{ display:none !important; }
+
+  /* Customer pass table (shown only in customer view) */
+  .cust-grid{ display:none; }
+  body.customer .cust-grid{ display:table; }
+
+  /* Also hide block inputs/metrics in customer view; keep cust-only summary visible */
   body.customer .block .inputs,
-  body.customer .block .metrics,
-  body.customer .block .grid{display:none !important}
-  body.customer .cust-only{display:block}
+  body.customer .block .metrics{ display:none !important; }
+  .cust-only{ display:none; }
+  body.customer .cust-only{ display:block; }
 </style>
 </head>
 <body>
@@ -342,7 +349,6 @@ function blockHTML(b){
             <label for="dpp-${b.id}">$ / pin</label>
             <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
           </div>
-
           <div class="chip">
             <label for="owlQty-${b.id}">Owl qty</label>
             <input id="owlQty-${b.id}" type="number" min="0" step="1" value="${b.owlQty||0}">
@@ -376,8 +382,9 @@ function blockHTML(b){
         <span class="pill inline" id="total-${b.id}">Whole-field total: $—</span>
       </div>
 
+      <!-- Original block grid (hidden in customer view) -->
       <div style="padding:0 10px 0">
-        <table class="grid">
+        <table class="grid block-grid">
           <thead>
             <tr>
               <th style="width:120px">Pass</th>
@@ -397,6 +404,26 @@ function blockHTML(b){
           </tfoot>
         </table>
       </div>
+
+      <!-- Customer view per-pass breakdown (visible only in customer view) -->
+      <div style="padding:0 10px 0">
+        <table class="grid cust-grid">
+          <thead>
+            <tr>
+              <th style="width:120px">Pass</th>
+              <th>Total Cost</th>
+            </tr>
+          </thead>
+          <tbody id="custrows-${b.id}"></tbody>
+          <tfoot>
+            <tr>
+              <td style="text-align:center"># of Passes</td>
+              <td id="custgrand-${b.id}" style="text-align:right">$—</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
     </div>
   </div>`;
 }
@@ -404,7 +431,6 @@ function blockHTML(b){
 /* Edit helpers */
 function clearMasterError(){ const e=$('#masterErr'); if(e){e.style.display='none'; e.textContent='';} }
 function setMasterError(msg){ const e=$('#masterErr'); if(e){ e.style.display='block'; e.textContent=msg; } }
-
 function setOverride(b, passIndex, rate){
   if (!b.overrides) b.overrides = {};
   b.overrides[passIndex] = round2(rate);
@@ -459,24 +485,6 @@ function adjustBlockTotal(b, targetAdjusted){
   for (let i=0;i<rates.length;i++) setOverride(b, i+1, rates[i]);
 }
 
-/* Calc helpers */
-function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, overrides){
-  const { basePerAcre } = calcBase(pinCount, acres, dollarsPerPin);
-  const passes = [];
-  let prev = basePerAcre;
-  for (let i=1;i<=passCount;i++){
-    let rate = (i===1) ? basePerAcre : (prev/2);
-    if (overrides && overrides[i] != null) rate = Number(overrides[i]);
-    let floored = false;
-    if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
-    passes.push({ number:i, perAcre:rate, floored });
-    prev = rate;
-  }
-  const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
-  const fieldTotal   = round2(perAcreTotal * acres);
-  return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
-}
-
 /* Render */
 function renderAll(){
   try{
@@ -513,15 +521,13 @@ function renderAll(){
         const acres = Number($(`#acres-${b.id}`).value);
 
         const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
-
-        /* NEW: auto-populate per-block floor/dpp with master values if blank/invalid */
+        /* Auto-populate child floor/$pin from master if blank/invalid */
         if (floorIn.value === '' || !Number.isFinite(Number(floorIn.value)) || Number(floorIn.value) < 0){
           floorIn.value = String(floor);
         }
         if (dppIn.value === '' || !Number.isFinite(Number(dppIn.value)) || Number(dppIn.value) < 0){
           dppIn.value = String(dpp);
         }
-
         const effFloor = round2(Number(floorIn.value));
         const effDpp   = round2(Number(dppIn.value));
 
@@ -531,11 +537,10 @@ function renderAll(){
 
         const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
 
-        // block owl qty
         const bOwlQty = Math.max(0, Math.trunc(Number($(`#owlQty-${b.id}`).value)||0));
         if (include) blocksOwlsQtySum += bOwlQty;
 
-        // header pill meta
+        // pill header meta
         $(`#hdrPins-${b.id}`).textContent  = Number.isFinite(pins)?pins:'—';
         $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
@@ -547,19 +552,24 @@ function renderAll(){
         $(`#cAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#cOwls-${b.id}`).textContent  = `${bOwlQty}`;
 
-        // build block table + accumulate to master
+        // ----- Build ORIGINAL block table (normal view) -----
         const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
         let blockBaseTotal = 0, blockAdjTotal = 0, blockHours = 0;
+
+        // ----- Build CUSTOMER per-pass table -----
+        const ctbody = $(`#custrows-${b.id}`); ctbody.innerHTML = '';
+        let custAdjTotal = 0;
 
         for (const p of q.passes){
           const passBase  = round2(p.perAcre * acres);
           const passAdj   = round2(passBase * factor);
-          const hours     = round2(passBase / 120);  // hours based on base
+          const hours     = round2(passBase / 120);  // for normal view only
 
           blockBaseTotal += passBase;
           blockAdjTotal  += passAdj;
           blockHours     += hours;
 
+          // normal row
           const tr = document.createElement('tr');
           if (p.number===1) tr.classList.add('row-hi');
           tr.innerHTML = `
@@ -568,6 +578,15 @@ function renderAll(){
             <td class="col-hours">${hours.toFixed(2)} h</td>
             <td>${fmtUSD(passAdj)}</td>`;
           tbody.appendChild(tr);
+
+          // customer row (Pass / Adjusted Total Cost only)
+          const ctr = document.createElement('tr');
+          if (p.number===1) ctr.classList.add('row-hi');
+          ctr.innerHTML = `
+            <td style="text-align:center">Pass ${p.number}</td>
+            <td>${fmtUSD(passAdj)}</td>`;
+          ctbody.appendChild(ctr);
+          custAdjTotal += passAdj;
 
           if (include){
             const idx = p.number-1;
@@ -583,12 +602,14 @@ function renderAll(){
         $(`#passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
         $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);
         $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
+        $(`#custgrand-${b.id}`).textContent = fmtUSD(custAdjTotal);
 
-        // header pill monthly
+        // pill hours + monthly (services only)
         $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
         const perMonthServices = round2(blockAdjTotal / months);
         $(`#pillMonthly-${b.id}`).textContent = `${fmtUSD(perMonthServices)}/mo`;
 
+        // "Whole-field total" shows adjusted services total
         $(`#total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
 
         if (include){ totalActiveAcres += acres; includedPins += pins; activeBlocks++; }
@@ -600,7 +621,7 @@ function renderAll(){
 
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-    // master table
+    // ----- Master table (unchanged behavior) -----
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, adjTotal = 0, masterHours = 0;
     for (let i=0;i<masterRows.length;i++){
