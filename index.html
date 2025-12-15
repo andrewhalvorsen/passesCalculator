@@ -82,6 +82,9 @@
   .muted{color:#e8f5e5} /* light text for green pill headers */
   .accent{color:var(--labelGreen);font-weight:800} /* labels in summary */
 
+  /* Make the +0% label dark (not muted) */
+  #masterPctLabel{ color:var(--labelGreen) !important; font-weight:800; }
+
   /* Small buttons for master % adjust */
   .micro{
     border:1px solid rgba(0,0,0,.12);
@@ -228,7 +231,7 @@
               <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap">
                 <span class="pill inline" id="masterAdjTotalPill">$—</span>
                 <button class="micro" id="masterDecPct" type="button">−1%</button>
-                <span id="masterPctLabel" class="muted">+0%</span>
+                <span id="masterPctLabel">+0%</span>
                 <button class="micro" id="masterIncPct" type="button">+1%</button>
               </div>
             </td>
@@ -393,6 +396,15 @@ function blockHTML(b){
             <button class="pill-btn" id="addPass-${b.id}" type="button">+ Add 1 Pass</button>
           </div>
         </div>
+
+        <!-- Set target total for this block -->
+        <div class="controls-row" style="margin-top:6px">
+          <div class="chip">
+            <label for="target-${b.id}">Set total</label>
+            <input id="target-${b.id}" type="number" min="0" step="0.01" placeholder="">
+          </div>
+          <button class="pill-btn" id="applyTarget-${b.id}" type="button">Apply</button>
+        </div>
       </div>
 
       <div style="padding:6px 10px;display:flex;gap:6px;flex-wrap:wrap">
@@ -483,6 +495,58 @@ function setOverride(b, passIndex, rate){
   b.overrides[passIndex] = round2(rate);
 }
 
+/* === NEW: Adjust one block to a target TOTAL (services adjusted total) === */
+function adjustBlockTotal(b, targetAdjusted){
+  clearMasterError();
+  const id = b.id;
+
+  const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
+  const acres = Number($(`#acres-${id}`).value||0) || 0.01; // avoid 0
+
+  const floorIn = $(`#floor-${id}`), dppIn = $(`#dpp-${id}`);
+  const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0)
+    ? round2(Number(floorIn.value)) : (Number($('#masterFloor').value)||20);
+  const effDpp   = (dppIn.value!==''   && Number.isFinite(Number(dppIn.value))   && Number(dppIn.value)  >=0)
+    ? round2(Number(dppIn.value))   : (Number($('#masterDpp').value)||20);
+
+  // Current pass rates for this block
+  const base = calcBase(pins, acres, effDpp);
+  let passCount = base.autoCount + (b.addedPasses||0) - (b.removedPasses||0);
+  passCount = clamp(passCount,1,8);
+  const q = calcWithCount(pins, acres, passCount, effFloor, effDpp, b.overrides);
+
+  const factor = 1 + (Number(masterAdjPct)||0)/100;            // adjusted vs base
+  const targetBaseTotal = Number(targetAdjusted||0) / factor;   // sum(passBase)
+  if (!(targetBaseTotal>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
+
+  const targetSumRates = targetBaseTotal / acres;               // sum of per-acre rates to hit target
+  const curSumRates = q.passes.reduce((s,p)=> s+p.perAcre, 0);
+  const sumFloors   = passCount * effFloor;
+
+  if (targetSumRates < sumFloors - 0.01){
+    setMasterError(`Block ${id}: target below floors (${fmtUSD(round2(sumFloors*acres))} base). Floors applied.`);
+    for (let i=1;i<=passCount;i++) setOverride(b, i, effFloor);
+    return;
+  }
+
+  // Uniform scale, then iterate respecting floors
+  let s = curSumRates>0 ? (targetSumRates / curSumRates) : 1;
+  const rates = q.passes.map(p => Math.max(effFloor, round2(p.perAcre * s)));
+  let achieved = rates.reduce((a,r)=>a+r,0);
+
+  for (let iter=0; iter<12 && Math.abs(achieved - targetSumRates) > 0.01; iter++){
+    const delta = targetSumRates - achieved;
+    const freeIdx = delta>=0 ? rates.map((_,i)=>i)
+                             : rates.map((r,i)=> r>effFloor+1e-9 ? i : -1).filter(i=>i>=0);
+    if (freeIdx.length===0) break;
+    const dPer = delta / freeIdx.length;
+    for (const i of freeIdx) rates[i] = Math.max(effFloor, round2(rates[i] + dPer));
+    achieved = rates.reduce((a,r)=>a+r,0);
+  }
+
+  for (let i=0;i<rates.length;i++) setOverride(b, i+1, rates[i]);
+}
+
 /* Render */
 function renderAll(){
   try{
@@ -513,7 +577,7 @@ function renderAll(){
         if (err) err.style.display='none';
 
         const pins  = Math.trunc(Number($(`#pins-${b.id}`).value));
-        const acres = Number($(`#acres-${b.id}`).value);
+        const acres = Number($(`#acres-${b.id}`).value));
 
         const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
         const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0) ? round2(Number(floorIn.value)) : floor;
@@ -702,6 +766,7 @@ function wireEvents(){
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
     const btn = e.target.closest('button');
+
     if (btn && btn.id.startsWith('addPass-')){
       const id = Number(btn.id.replace('addPass-',''));
       const b = blocks.find(x=>x.id===id); if (!b) return;
@@ -715,6 +780,17 @@ function wireEvents(){
       else b.removedPasses = (b.removedPasses||0) + 1;
       renderAll(); return;
     }
+
+    // NEW: apply target total for a block
+    if (btn && btn.id.startsWith('applyTarget-')){
+      const id = Number(btn.id.replace('applyTarget-',''));
+      const b = blocks.find(x=>x.id===id); if (!b) return;
+      const val = Number($(`#target-${id}`).value);
+      if (!(val>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
+      adjustBlockTotal(b, val);
+      renderAll(); return;
+    }
+
     const tz = e.target.closest('.toggle-zone');
     if (tz){
       const id = Number(tz.id.replace('toggle-zone-',''));
@@ -724,6 +800,19 @@ function wireEvents(){
       return;
     }
   });
+
+  // Enter key on target total
+  blocksEl.addEventListener('keydown', (e)=>{
+    if (e.key==='Enter' && e.target.id && e.target.id.startsWith('target-')){
+      const id = Number(e.target.id.replace('target-',''));
+      const b = blocks.find(x=>x.id===id); if (!b) return;
+      const val = Number($(`#target-${id}`).value);
+      if (!(val>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
+      adjustBlockTotal(b, val);
+      renderAll();
+    }
+  });
+
   blocksEl.addEventListener('input', (e)=>{
     if (/^(pins-|acres-|floor-|dpp-|owlQty-)/.test(e.target.id)) renderAll();
   });
