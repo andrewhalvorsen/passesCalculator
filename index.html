@@ -215,15 +215,7 @@
             <th class="col-adj-peracre">Adjusted Cost / Acre</th>
             <th>Hours</th>
             <th>Total Cost</th>
-            <th class="col-adj-total">
-              <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
-                <span>Adjusted Total</span>
-                <span class="pill inline" id="masterAdjTotalPill">$—</span>
-                <button class="micro cust-hide" id="masterDecPct" type="button">−1%</button>
-                <span id="masterPctLabel" class="muted">+0%</span>
-                <button class="micro cust-hide" id="masterIncPct" type="button">+1%</button>
-              </div>
-            </th>
+            <th class="col-adj-total">Adjusted Total Cost</th>
           </tr>
         </thead>
         <tbody id="masterPassRows"></tbody>
@@ -241,8 +233,16 @@
       </table>
     </div>
 
-    <!-- Included pins/acres above payment plan -->
+    <!-- Footer with Adjusted Total at the bottom -->
     <div class="foot">
+      <div class="foot-topline cust-hide" id="masterAdjRow" style="gap:10px">
+        <span class="muted">Adjusted Total:</span>
+        <span class="pill inline" id="masterAdjTotalPill">$—</span>
+        <button class="micro" id="masterDecPct" type="button">−1%</button>
+        <span id="masterPctLabel" class="muted">+0%</span>
+        <button class="micro" id="masterIncPct" type="button">+1%</button>
+      </div>
+
       <div class="foot-topline">
         <span class="muted" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
       </div>
@@ -304,7 +304,7 @@ let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,o
 let blockSeq = 1;
 let masterMonthsTouched = false;
 const editState = { active:false, by:'total' };
-let masterAdjPct = 0; // <<< global adjuster
+let masterAdjPct = 0; // global adjuster
 
 /* Block template */
 function blockHTML(b){
@@ -503,7 +503,7 @@ function renderAll(){
         for (const p of q.passes){
           const passBase  = round2(p.perAcre * acres);
           const passAdj   = round2(passBase * factor);
-          const hours     = round2(passAdj / 120);  // hours from adjusted
+          const hours     = round2(passBase / 120);  // HOURS from BASE (unadjusted)
 
           blockBaseTotal += passBase;
           blockAdjTotal  += passAdj;
@@ -533,12 +533,12 @@ function renderAll(){
         $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);  // adjusted in the block footer
         $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
 
-        // pill hours + monthly (adjusted)
+        // pill hours + monthly (hours from base, monthly from adjusted)
         $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
         const perMonth = round2(blockAdjTotal / months);
         $(`#pillMonthly-${b.id}`).textContent = `${fmtUSD(perMonth)}/mo`;
 
-        // "Whole-field total" text shows adjusted as well
+        // "Whole-field total" shows adjusted
         $(`#total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
 
         if (include){ totalActiveAcres += acres; includedPins += pins; activeBlocks++; }
@@ -559,7 +559,7 @@ function renderAll(){
       const adjRowTotal  = round2(row.adjTotal);
       const basePerAcre  = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const adjPerAcre   = row.acres>0 ? round2(adjRowTotal/row.acres)  : 0;
-      const hoursPass    = round2(adjRowTotal/120); // hours from adjusted
+      const hoursPass    = round2(baseRowTotal/120); // HOURS from BASE (unadjusted)
 
       baseTotal += baseRowTotal; adjTotal += adjRowTotal; masterHours += hoursPass;
 
@@ -595,9 +595,10 @@ function renderAll(){
     // Totals: base vs adjusted; customer shows adjusted as "Total Cost"
     const baseShown = document.body.classList.contains('customer') ? adjTotal : baseTotal;
     $('#masterBaseTotal').textContent = fmtUSD(round2(baseShown));
+
+    // Footer adjusted total pill + payments use ADJUSTED
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
-
     const payments = equalPayments(round2(adjTotal), monthsVal);
     $('#masterPaymentPill').textContent = `${monthsVal} payments of ${fmtUSD(payments[0]||0)}`;
   }catch(e){ console.error(e); }
@@ -677,7 +678,7 @@ function wireEvents(){
   $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
   $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
 
-  // Master % adjuster
+  // Master % adjuster (in footer)
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
 
