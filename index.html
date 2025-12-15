@@ -495,7 +495,7 @@ function setOverride(b, passIndex, rate){
   b.overrides[passIndex] = round2(rate);
 }
 
-/* === NEW: Adjust one block to a target TOTAL (services adjusted total) === */
+/* Adjust one block to a target TOTAL (services adjusted total) */
 function adjustBlockTotal(b, targetAdjusted){
   clearMasterError();
   const id = b.id;
@@ -577,7 +577,7 @@ function renderAll(){
         if (err) err.style.display='none';
 
         const pins  = Math.trunc(Number($(`#pins-${b.id}`).value));
-        const acres = Number($(`#acres-${b.id}`).value));
+        const acres = Number($(`#acres-${b.id}`).value);  /* <-- FIXED LINE (no extra ) ) */
 
         const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
         const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0) ? round2(Number(floorIn.value)) : floor;
@@ -781,7 +781,7 @@ function wireEvents(){
       renderAll(); return;
     }
 
-    // NEW: apply target total for a block
+    // apply target total for a block
     if (btn && btn.id.startsWith('applyTarget-')){
       const id = Number(btn.id.replace('applyTarget-',''));
       const b = blocks.find(x=>x.id===id); if (!b) return;
