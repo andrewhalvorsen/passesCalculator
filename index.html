@@ -77,14 +77,6 @@
     width:80px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none
   }
 
-  /* Edit block (below Master Pass Control, left) */
-  .edit-under{display:flex;align-items:center;gap:8px;margin:8px 0 0 0}
-  .edit-inline{display:none;align-items:center;gap:8px}
-  .edit-inline .muted{display:inline-flex;align-items:center;font-weight:700;opacity:.9}
-  .edit-inline select{
-    padding:6px 8px;height:32px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;color:#102312
-  }
-
   .muted{color:#4a5d4c}
 
   /* Small buttons for master % adjust */
@@ -227,22 +219,23 @@
             <td class="col-adj-peracre"></td>
             <td id="masterHoursCell" style="text-align:right">— h</td>
             <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
-            <td class="col-adj-total" style="text-align:right"></td>
+            <!-- Adjusted total moved INTO the bottom of the Adjusted Total Cost column -->
+            <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
+              <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+                <span>Adjusted Total:</span>
+                <span class="pill inline" id="masterAdjTotalPill">$—</span>
+                <button class="micro" id="masterDecPct" type="button">−1%</button>
+                <span id="masterPctLabel" class="muted">+0%</span>
+                <button class="micro" id="masterIncPct" type="button">+1%</button>
+              </div>
+            </td>
           </tr>
         </tfoot>
       </table>
     </div>
 
-    <!-- Footer with Adjusted Total at the bottom -->
+    <!-- Footer (kept minimal now that adjusted total is in the column footer) -->
     <div class="foot">
-      <div class="foot-topline cust-hide" id="masterAdjRow" style="gap:10px">
-        <span class="muted">Adjusted Total:</span>
-        <span class="pill inline" id="masterAdjTotalPill">$—</span>
-        <button class="micro" id="masterDecPct" type="button">−1%</button>
-        <span id="masterPctLabel" class="muted">+0%</span>
-        <button class="micro" id="masterIncPct" type="button">+1%</button>
-      </div>
-
       <div class="foot-topline">
         <span class="muted" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
       </div>
@@ -463,7 +456,7 @@ function renderAll(){
     const masterRows = []; // idx -> { baseTotal, adjTotal, acres, contrib }
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
 
-    // Months (needed for per-block monthly pill)
+    // Months for per-block monthly pill
     let months = Number($('#masterMonths').value);
     if (!Number.isFinite(months) || months<1) months = 1;
 
@@ -533,7 +526,7 @@ function renderAll(){
         $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);  // adjusted in the block footer
         $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
 
-        // pill hours + monthly (hours from base, monthly from adjusted)
+        // pill hours + monthly
         $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
         const perMonth = round2(blockAdjTotal / months);
         $(`#pillMonthly-${b.id}`).textContent = `${fmtUSD(perMonth)}/mo`;
@@ -581,7 +574,7 @@ function renderAll(){
     $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
     $('#masterBlocksCell').textContent = `${activeBlocks}/${blocks.length}`;
 
-    // Included acres & pins (counters)
+    // Included acres & pins
     $('#masterAcreInfoMuted').textContent =
       `Included acres: ${round2(totalActiveAcres)} • Included pins: ${includedPins}`;
 
@@ -592,13 +585,14 @@ function renderAll(){
     if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; monthsEl.value = monthsVal; }
     monthsVal = clamp(Math.trunc(monthsVal), 1, 12); if (String(monthsVal)!==monthsEl.value) monthsEl.value = monthsVal;
 
-    // Totals: base vs adjusted; customer shows adjusted as "Total Cost"
+    // Totals
     const baseShown = document.body.classList.contains('customer') ? adjTotal : baseTotal;
     $('#masterBaseTotal').textContent = fmtUSD(round2(baseShown));
 
-    // Footer adjusted total pill + payments use ADJUSTED
+    // Adjusted total pill (now in table footer cell) + label
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
+
     const payments = equalPayments(round2(adjTotal), monthsVal);
     $('#masterPaymentPill').textContent = `${monthsVal} payments of ${fmtUSD(payments[0]||0)}`;
   }catch(e){ console.error(e); }
@@ -624,7 +618,7 @@ function wireEvents(){
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // Edit controls (below master pass control)
+  // Edit controls
   $('#editToggle').addEventListener('click', ()=>{
     editState.active = true;
     clearMasterError();
@@ -678,7 +672,7 @@ function wireEvents(){
   $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
   $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
 
-  // Master % adjuster (in footer)
+  // Master % adjuster (now in the Adjusted Total Cost tfoot cell)
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
 
