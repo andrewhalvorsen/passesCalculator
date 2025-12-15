@@ -102,11 +102,8 @@
   .pill-floor, .pill-dpp { display:inline; }
   body.customer .pill-floor, body.customer .pill-dpp { display:none; }
 
-  /* ONLY hide the original block grid in customer view */
-  .block-grid{ }
+  /* Hide normal block grid in customer view; show customer grid */
   body.customer .block-grid{ display:none !important; }
-
-  /* Customer pass table (shown only in customer view) */
   .cust-grid{ display:none; }
   body.customer .cust-grid{ display:table; }
 
@@ -349,6 +346,7 @@ function blockHTML(b){
             <label for="dpp-${b.id}">$ / pin</label>
             <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
           </div>
+
           <div class="chip">
             <label for="owlQty-${b.id}">Owl qty</label>
             <input id="owlQty-${b.id}" type="number" min="0" step="1" value="${b.owlQty||0}">
@@ -411,6 +409,7 @@ function blockHTML(b){
           <thead>
             <tr>
               <th style="width:120px">Pass</th>
+              <th>Cost / Acre</th>
               <th>Total Cost</th>
             </tr>
           </thead>
@@ -418,6 +417,7 @@ function blockHTML(b){
           <tfoot>
             <tr>
               <td style="text-align:center"># of Passes</td>
+              <td id="custpasses-${b.id}" class="muted" style="text-align:center">—</td>
               <td id="custgrand-${b.id}" style="text-align:right">$—</td>
             </tr>
           </tfoot>
@@ -579,11 +579,15 @@ function renderAll(){
             <td>${fmtUSD(passAdj)}</td>`;
           tbody.appendChild(tr);
 
-          // customer row (Pass / Adjusted Total Cost only)
+          // customer row (Pass / Adjusted Cost per Acre / Adjusted Total)
           const ctr = document.createElement('tr');
           if (p.number===1) ctr.classList.add('row-hi');
+
+          const adjPerAcre = round2(p.perAcre * factor);
+
           ctr.innerHTML = `
             <td style="text-align:center">Pass ${p.number}</td>
+            <td>${fmtUSD(adjPerAcre)}</td>
             <td>${fmtUSD(passAdj)}</td>`;
           ctbody.appendChild(ctr);
           custAdjTotal += passAdj;
@@ -603,6 +607,7 @@ function renderAll(){
         $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);
         $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
         $(`#custgrand-${b.id}`).textContent = fmtUSD(custAdjTotal);
+        $(`#custpasses-${b.id}`).textContent = q.passCount;
 
         // pill hours + monthly (services only)
         $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
@@ -621,7 +626,7 @@ function renderAll(){
 
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-    // ----- Master table (unchanged behavior) -----
+    // ----- Master table -----
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, adjTotal = 0, masterHours = 0;
     for (let i=0;i<masterRows.length;i++){
