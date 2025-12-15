@@ -56,9 +56,8 @@
 
   /* Edit bar */
   .editbar{display:flex;align-items:center;gap:8px;justify-content:flex-end;padding:4px 12px}
-  .editbar .mini{font-size:12px}
   .editbar select,.editbar input[type=number]{padding:4px 6px;border:1px solid #d1d5db;border-radius:8px}
-  .editbar .btn{padding:4px 8px;font-size:12px}
+  .editbar .pill-btn{padding:6px 10px;font-size:13px}
 
   .muted{color:#6b7280}
 
@@ -105,8 +104,8 @@
 
   /* Customer view */
   .cust-hide{display:block}
-  body.customer .cust-hide{display:none !important}
-  body.customer .blocks{display:none !important}
+  body.customer .cust-hide{display:none !important}   /* hide advanced top controls */
+  /* Do NOT hide blocks in customer view anymore */
   .col-adj-peracre,.col-hours,.col-adj-total{display:table-cell}
   body.customer .col-adj-peracre,
   body.customer .col-hours,
@@ -163,16 +162,16 @@
       </div>
     </div>
 
-    <!-- Edit controls -->
+    <!-- Edit controls (now pill-style buttons) -->
     <div class="editbar cust-hide">
-      <button class="btn" id="editToggle" type="button">Edit</button>
-      <div class="mini">Edit by:</div>
+      <button class="pill-btn" id="editToggle" type="button">Edit</button>
+      <span class="muted">Edit by:</span>
       <select id="editBy">
         <option value="total" selected>Total</option>
         <option value="peracre">Cost / Acre</option>
       </select>
-      <button class="btn" id="editSave" type="button" style="display:none">Save</button>
-      <button class="btn" id="editCancel" type="button" style="display:none">Cancel</button>
+      <button class="pill-btn" id="editSave" type="button" style="display:none">Save</button>
+      <button class="pill-btn" id="editCancel" type="button" style="display:none">Cancel</button>
     </div>
 
     <div class="muted" id="masterAcreInfoMuted" style="padding:0 12px 6px">Included acres: — • Included pins: —</div>
@@ -252,7 +251,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, 
     let floored = false;
     if (rate < floorPerAcre){ rate = floorPerAcre; floored = true; }
     passes.push({ number:i, perAcre:rate, floored });
-    prev = rate; // subsequent halves use possibly overridden/floored rate
+    prev = rate;
   }
   const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
   const fieldTotal   = round2(perAcreTotal * acres);
@@ -282,7 +281,7 @@ function blockHTML(b){
           <span class="muted" id="effectiveDpp-${b.id}"></span>
           <label class="switch" id="include-wrap-${b.id}">
             <input type="checkbox" id="include-${b.id}" ${b.include?'checked':''}>
-            <span>Include in totals</span>
+            <span id="include-label-${b.id}">Include in totals</span>
           </label>
         </div>
       </div>
@@ -354,7 +353,7 @@ function clearMasterError(){ const e=$('#masterErr'); if(e){e.style.display='non
 function setMasterError(msg){ const e=$('#masterErr'); if(e){ e.style.display='block'; e.textContent=msg; } }
 
 function gatherPassContext(passIndex){
-  const ctx = []; // {b, acres, effFloor, effDpp, passCount, rate}
+  const ctx = []; // {b, acres, effFloor, rate}
   for (const b of blocks){
     if (!b.include) continue;
     const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
@@ -396,8 +395,8 @@ function distributePassToTarget(passIndex, targetTotal){
   for (let iter=0; iter<10 && Math.abs(achieved - targetTotal) > 0.01; iter++){
     const delta = targetTotal - achieved;
     const free = delta >= 0
-      ? ctx              // can increase everyone
-      : ctx.filter(x => x.newRate > x.effFloor + 1e-9); // can only decrease those above floor
+      ? ctx
+      : ctx.filter(x => x.newRate > x.effFloor + 1e-9);
     if (free.length===0) break;
     const sumA = free.reduce((s,x)=> s + x.acres, 0) || 1;
     const dPerAcre = delta / sumA;
@@ -425,19 +424,20 @@ function renderAll(){
     const customerMode = document.body.classList.contains('customer');
 
     const editBy = editState.by;
-    $('#editSave').style.display   = editState.active ? 'inline-block' : 'none';
-    $('#editCancel').style.display = editState.active ? 'inline-block' : 'none';
+    $('#editSave').style.display   = editState.active ? 'inline-flex' : 'none';
+    $('#editCancel').style.display = editState.active ? 'inline-flex' : 'none';
     $('#editToggle').textContent   = editState.active ? 'Editing…' : 'Edit';
     $('#editBy').disabled          = !editState.active;
 
-    const masterRows = []; // each index: { total, acres, contrib, perAcre }
+    const masterRows = []; // each index: { total, acres, contrib }
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
 
     for (const b of blocks){
       const err = $(`#err-${b.id}`);
       const include = $(`#include-${b.id}`).checked;
       b.include = include;
-      document.querySelector(`.block[data-block-id="${b.id}"]`).classList.toggle('inactive', !include);
+      const blockEl = document.querySelector(`.block[data-block-id="${b.id}"]`);
+      blockEl.classList.toggle('inactive', !include);
 
       try{
         if (err) err.style.display='none';
@@ -449,11 +449,19 @@ function renderAll(){
         const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value)>=0) ? round2(Number(floorIn.value)) : floor;
         const effDpp   = (dppIn.value!=='' && Number.isFinite(Number(dppIn.value))   && Number(dppIn.value)  >=0) ? round2(Number(dppIn.value))   : dpp;
 
-        // Update header pill meta
+        // Header pill meta
         $(`#hdrPins-${b.id}`).textContent  = `Pins: ${Number.isFinite(pins)?pins:'—'}`;
         $(`#hdrAcres-${b.id}`).textContent = `Acres: ${Number.isFinite(acres)?round2(acres).toFixed(2):'—'}`;
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
         $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
+
+        // Change include label wording in customer mode
+        const labelSpan = document.querySelector(`#include-label-${b.id}`);
+        if (labelSpan){
+          labelSpan.textContent = customerMode
+            ? (include ? 'Remove from totals' : 'Add back to totals')
+            : 'Include in totals';
+        }
 
         const base = calcBase(pins, acres, effDpp);
         let passCount = base.autoCount + (b.addedPasses||0) - (b.removedPasses||0);
@@ -516,7 +524,7 @@ function renderAll(){
       const adjPerAcre = round2(perAcre * adjFactor);
       const adjRowTotal= round2(baseRowTotal * adjFactor);
       baseTotal += baseRowTotal; masterHours += hoursPass;
-      const displayTotal = customerMode ? adjRowTotal : baseRowTotal;
+      const displayTotal = document.body.classList.contains('customer') ? adjRowTotal : baseRowTotal;
       const contribText = `${row.contrib||0}/${activeBlocks}`;
 
       const tr = document.createElement('tr');
@@ -584,7 +592,7 @@ function wireEvents(){
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // Edit controls
+  // Edit controls (pill-style buttons)
   $('#editToggle').addEventListener('click', ()=>{
     editState.active = !editState.active;
     clearMasterError();
@@ -611,7 +619,6 @@ function wireEvents(){
           const passIndex = Number(inp.dataset.pass);
           const perAcre = Number(inp.value);
           if (!Number.isFinite(perAcre)) return;
-          // total acres contributing to this pass
           const ctx = gatherPassContext(passIndex);
           const sumAcres = ctx.reduce((s,x)=> s + x.acres, 0);
           const targetTotal = round2(perAcre * sumAcres);
