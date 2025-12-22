@@ -213,24 +213,7 @@
       </table>
     </div>
 
-    <!-- Extras -->
-    <div class="inputs" id="extrasSection">
-      <div class="controls-row">
-        <div class="group">
-          <div class="label">Extra services (adds to monthly)</div>
-          <div class="row-controls">
-            <span class="pill inline" id="owlQtyTotalPill">Owls: 0</span>
-            <div class="chip">
-              <label for="owlPrice">Price / Owl</label>
-              <input id="owlPrice" type="number" min="0" step="0.01" value="600" />
-            </div>
-            <span class="pill inline" id="owlTotalPill">$0.00</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
+    <!-- Footer (no extras) -->
     <div class="foot">
       <div class="foot-topline">
         <span class="accent" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
@@ -238,8 +221,6 @@
       <div class="foot-topline">
         <span class="accent">Monthly (Services):</span>
         <span class="pill inline" id="monthlyServicesPill">$—/mo</span>
-        <span class="accent">Monthly (Extras):</span>
-        <span class="pill inline" id="monthlyExtrasPill">$—/mo</span>
       </div>
       <div class="foot-topline">
         <span class="accent">Total per month:</span>
@@ -297,7 +278,7 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, 
     let rate = (i===1) ? basePerAcre : (prev/2);
     let floored = false;
 
-    // Overrides win and can go below floor (needed to hit "Set total" and per-pass edits)
+    // Overrides win and can go below floor (needed for Set total / per-pass edits)
     if (overrides && overrides[i] != null) {
       rate = Number(overrides[i]);
     } else if (rate < floorPerAcre){
@@ -313,14 +294,14 @@ function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, 
 }
 
 /* ===== State ===== */
-let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides,owlQty}
+let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides}
 let blockSeq = 1;
 let masterMonthsTouched = false;
 const editState = { active:false, by:'total' }; // master edit
 let masterAdjPct = 0;
 const blockEdit = {}; // per-block edit state: { [id]: {active:boolean, by:'total'|'peracre'} }
 
-/* ===== Effective inputs (blank => inherit master) ===== */
+/* Effective inputs (blank => inherit master) */
 function effFloorFor(b){
   const el = $(`#floor-${b.id}`);
   const raw = el ? el.value : '';
@@ -358,7 +339,6 @@ function blockHTML(b){
           <span class="muted">• Acres: <span id="hdrAcres-${b.id}">—</span></span>
           <span class="muted cust-hours">• <span id="pillHours-${b.id}">0.00</span> h</span>
           <span class="muted">• <span id="pillMonthly-${b.id}">$0.00/mo</span></span>
-          <span class="muted">• Owls: <span id="pillOwls-${b.id}">0</span></span>
         </div>
         <div class="tz-right">
           <span class="muted pill-floor" id="effectiveFloor-${b.id}"></span>
@@ -391,11 +371,6 @@ function blockHTML(b){
           <div class="chip">
             <label for="dpp-${b.id}">$ / pin</label>
             <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
-          </div>
-
-          <div class="chip">
-            <label for="owlQty-${b.id}">Owl qty</label>
-            <input id="owlQty-${b.id}" type="number" min="0" step="1" value="${b.owlQty||0}">
           </div>
 
           <div class="row-controls" style="margin-left:8px">
@@ -431,7 +406,6 @@ function blockHTML(b){
       <div class="cust-only" style="padding:6px 10px">
         <span class="pill inline">Pins: <span id="cPins-${b.id}">—</span></span>
         <span class="pill inline">Acres: <span id="cAcres-${b.id}">—</span></span>
-        <span class="pill inline">Owls: <span id="cOwls-${b.id}">—</span></span>
       </div>
 
       <div class="metrics" style="padding:6px 10px;display:flex;gap:6px;flex-wrap:wrap">
@@ -573,7 +547,7 @@ function applyBlockEdit(blockId, passIndex1, mode, targetAdjustedValue){
   }
 }
 
-/* ===== Master edit across blocks (unchanged) ===== */
+/* ===== Master edit across blocks ===== */
 function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
   clearMasterError();
 
@@ -676,7 +650,6 @@ function renderAll(){
     const factor = 1 + (Number(masterAdjPct)||0)/100;
 
     const inCustomer = document.body.classList.contains('customer');
-    $('#owlPrice').disabled = inCustomer;
 
     // Master edit UI
     $('#editByWrap').style.display = (!inCustomer && editState.active ? 'inline-flex' : 'none');
@@ -684,7 +657,6 @@ function renderAll(){
 
     const masterRows = [];
     let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
-    let blocksOwlsQtySum = 0;
 
     let months = Number($('#masterMonths').value);
     if (!Number.isFinite(months) || months<1) months = 1;
@@ -711,15 +683,11 @@ function renderAll(){
         const pCount = passCountFor(b);
         const q = calcWithCount(pins, acres, pCount, effFloor, effDpp, b.overrides);
 
-        const bOwlQty = Math.max(0, Math.trunc(Number($(`#owlQty-${b.id}`).value)||0));
-        if (include) blocksOwlsQtySum += bOwlQty;
-
         // pill header meta
         $(`#hdrPins-${b.id}`).textContent  = Number.isFinite(pins)?pins:'—';
         $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
         $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
-        $(`#pillOwls-${b.id}`).textContent       = `${bOwlQty}`;
 
         // Block edit UI visibility & mode sync
         const be = blockEdit[b.id] || {active:false, by:'total'};
@@ -814,7 +782,7 @@ function renderAll(){
     for (let i=0;i<masterRows.length;i++){
       const row = masterRows[i]; if (!row) continue;
       const baseRowTotal = round2(row.baseTotal);
-      const adjRowTotal  = round2(row.adjTotal);
+      const adjRowTotal  = round2(row.adTotal || row.adjTotal); // guard
       const basePerAcre  = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
       const adjPerAcre   = row.acres>0 ? round2(adjRowTotal/row.acres)  : 0;
       const hoursPass    = round2(baseRowTotal/120);
@@ -855,26 +823,18 @@ function renderAll(){
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
 
-    // Extras + months/payments
-    const owlPriceMaster = Math.max(0, Number($('#owlPrice').value)||0);
-    const extrasTotal = round2(blocksOwlsQtySum * owlPriceMaster);
-    $('#owlQtyTotalPill').textContent = `Owls: ${blocksOwlsQtySum}`;
-    $('#owlTotalPill').textContent = fmtUSD(extrasTotal);
-
+    // months & payments (no extras)
     let monthsVal = Number($('#masterMonths').value);
     const maxPass = mBody.children.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; $('#masterMonths').value = monthsVal; }
-    monthsVal = clamp(Math.trunc(monthsVal), 1, 12); if (String(monthsVal)!==$('#masterMonths').value) $('#masterMonths').value = monthsVal;
+    monthsVal = clamp(Math.trunc(monthsVal), 1, 12);
+    if (String(monthsVal)!==$('#masterMonths').value) $('#masterMonths').value = monthsVal;
 
     const monthlyServices = round2(adjTotal / monthsVal);
-    const monthlyExtras   = round2(extrasTotal / monthsVal);
-    const monthlyTotal    = round2(monthlyServices + monthlyExtras);
-
     $('#monthlyServicesPill').textContent = fmtUSD(monthlyServices) + '/mo';
-    $('#monthlyExtrasPill').textContent   = fmtUSD(monthlyExtras)   + '/mo';
-    $('#masterMonthlyTotalPill').textContent = fmtUSD(monthlyTotal) + '/mo';
+    $('#masterMonthlyTotalPill').textContent = fmtUSD(monthlyServices) + '/mo';
 
-    const grandDue = round2(adjTotal + extrasTotal);
+    const grandDue = round2(adjTotal);
     const payments = equalPayments(grandDue, monthsVal);
     $('#masterPaymentPill').textContent = `${monthsVal} payments of ${fmtUSD(payments[0]||0)}`;
 
@@ -885,7 +845,7 @@ function renderAll(){
 /* ===== Blocks add ===== */
 function addNewBlock({pins=0, acres=1, collapsed=true}={}){
   const id = blockSeq++;
-  const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{}, owlQty:0 };
+  const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{} };
   blocks.push(b);
   $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
   renderAll();
@@ -941,9 +901,6 @@ function wireEvents(){
   // % adjuster
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
-
-  // Extras
-  $('#owlPrice').addEventListener('input', renderAll);
 
   // Add block
   $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
@@ -1015,7 +972,7 @@ function wireEvents(){
       renderAll();
       return;
     }
-    if (/^(pins-|acres-|floor-|dpp-|include-|owlQty-)/.test(e.target.id)) renderAll();
+    if (/^(pins-|acres-|floor-|dpp-|include-)/.test(e.target.id)) renderAll();
   });
 
   // Commit per-block edits on Enter/blur
@@ -1049,7 +1006,1027 @@ function wireEvents(){
   }, true);
 
   blocksEl.addEventListener('input', (e)=>{
-    if (/^(pins-|acres-|floor-|dpp-|owlQty-)/.test(e.target.id)) renderAll();
+    if (/^(pins-|acres-|floor-|dpp-)/.test(e.target.id)) renderAll();
+  });
+}
+
+/* ===== Boot ===== */
+(function start(){
+  wireEvents();
+  addNewBlock({ pins:400, acres:54, collapsed:false }); // shows 6 passes at $20/pin
+})();
+</script>
+</body>
+</html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pass Pricing — Blocks</title>
+<style>
+  :root{
+    --surface:#ffffff;
+    --bg:#f4f6f3;
+    --ink:#112015;
+
+    --forest:#1f3823;   /* block pill background */
+    --forest-2:#2a4a30; /* summary header */
+    --olive:#5b7f2a;    /* buttons */
+    --olive-2:#496420;  /* button hover */
+    --chip-bg:#eef3ea;
+    --chip-border:#d7e0cf;
+    --table-head:#e9f2e4;
+    --border:#dfe7d8;
+    --yellow:#e8f29b;
+
+    --labelGreen:#14301b; /* darker green for labels */
+  }
+
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";margin:0;background:var(--bg);color:#1b2a1f}
+  .wrap{max-width:1100px;margin:16px auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+
+  /* Top bar */
+  .bar{background:var(--forest);color:#fff;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .bar .left,.bar .right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .btn{border:1px solid var(--olive-2);background:var(--olive);color:#fff;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer;font-weight:700;line-height:1}
+  .btn:hover{background:var(--olive-2)}
+  .pill{background:#e7f1dc;color:#234018;border:1px solid #cfe0b8;border-radius:999px;font-size:12px;font-weight:700}
+  .pill.inline{padding:4px 10px}
+
+  /* Master summary */
+  .card{border-top:1px solid var(--border)}
+  .header{background:var(--forest-2);padding:14px 12px;text-align:center}
+  .header h1{margin:0;font-size:22px;font-weight:800;color:#fff}
+
+  .inputs{padding:8px 12px;background:var(--surface)}
+  .controls-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;white-space:nowrap;overflow-x:auto;padding-bottom:2px}
+  .controls-row>*{flex:0 0 auto}
+  .group{display:flex;flex-direction:column;gap:4px;min-width:max-content}
+  .group .label{font-size:11px;color:var(--labelGreen);font-weight:800;letter-spacing:.02em}
+  .row-controls{display:flex;gap:8px;align-items:center}
+  .pill-btn{display:inline-flex;align-items:center;gap:6px;background:var(--olive);border:1px solid var(--olive-2);color:#fff;border-radius:9999px;padding:8px 12px;font-weight:800;cursor:pointer;line-height:1}
+  .pill-btn:hover{background:var(--olive-2)}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:var(--chip-bg);border:1px solid var(--chip-border);border-radius:9999px;padding:6px 10px;font-weight:700;color:#1e3a22}
+  .chip label{font-size:11px;opacity:.85}
+  .chip input{width:86px;font-size:13px;padding:4px 8px;border:1px solid #c9d5c2;border-radius:8px;background:#fff;outline:none}
+
+  .muted{color:#e8f5e5}
+  #masterPctLabel{ color:var(--labelGreen)!important; font-weight:800; }
+  .accent{color:var(--labelGreen);font-weight:800}
+
+  .micro{border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,.06);color:#102312;border-radius:9999px;padding:4px 8px;font-size:12px;font-weight:800;cursor:pointer}
+  .micro:hover{background:rgba(0,0,0,.12)}
+
+  /* Tables */
+  .grid{width:100%;border-collapse:collapse;margin:6px 0 10px}
+  .grid th,.grid td{border:1px solid var(--border);padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums}
+  .grid th:first-child,.grid td:first-child{text-align:center}
+  .grid thead th{background:var(--table-head);font-weight:800;color:#1d3522}
+  .grid tfoot td{background:#f3f7ef;font-weight:800}
+  .row-hi{background:var(--yellow)}
+  .notice{color:#7a1111;background:#fef2f2;border:1px solid #fecaca;padding:8px 10px;border-radius:10px;display:none;margin:0 12px 8px}
+
+  /* Hide HOURS everywhere in Customer view */
+  body.customer .col-hours, body.customer .cust-hours { display:none !important; }
+
+  /* Blocks */
+  .blocks{padding:0 12px 12px}
+  .block{border:none;border-radius:12px;margin:6px 0;overflow:hidden;transition:opacity .2s ease, filter .2s ease}
+  .inactive{opacity:.55; filter:grayscale(.4)}
+  .collapsed .block-body{display:none}
+
+  .title{background:var(--surface);padding:0}
+  .toggle-zone{margin:6px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--forest);border:none;border-radius:9999px;padding:10px 14px;cursor:pointer;color:#fff;user-select:none}
+  .toggle-zone .muted{color:rgba(255,255,255,.9)}
+  .tz-left{display:flex;align-items:center;gap:10px;font-weight:900}
+  .tz-right{display:flex;align-items:center;gap:12px}
+  .switch{display:flex;align-items:center;gap:6px;font-size:12px}
+  .switch input{transform:scale(1.05)}
+
+  .block .inputs{padding:8px 10px}
+  .block .controls-row{gap:8px}
+  .block .chip{padding:6px 10px}
+  .block .chip input{width:78px}
+  .block .row-controls{gap:8px}
+  .block .pill-btn{padding:8px 12px}
+
+  .foot{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface)}
+  .foot-topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  /* Customer view: hide editors/metrics; show cust-only summary + cust-grid */
+  body.customer .cust-hide{display:none !important}
+  .col-adj-peracre, .col-adj-total { display:table-cell; }
+  body.customer .col-adj-peracre, body.customer .col-adj-total { display:none; }
+  .pill-floor, .pill-dpp { display:inline; }
+  body.customer .pill-floor, body.customer .pill-dpp { display:none; }
+
+  body.customer .block-grid{ display:none !important; }
+  .cust-grid{ display:none; }
+  body.customer .cust-grid{ display:table; }
+
+  body.customer .block .inputs,
+  body.customer .block .metrics{ display:none !important; }
+  .cust-only{ display:none; }
+  body.customer .cust-only{ display:block; }
+
+  /* Edit row UI (shared) */
+  .edit-inline{ display:inline-flex; align-items:center; gap:10px; margin-top:6px; }
+  .edit-inline .muted{ color:var(--labelGreen); font-weight:800; }
+  #editByWrap{ margin-top:8px; }
+  .edit-input{ width:120px; padding:6px 8px; border:1px solid #c9d5c2; border-radius:8px; }
+  .edit-cell{ display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="left">
+      <div style="font-weight:900;letter-spacing:.02em">SERVICES PAGE</div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;margin-left:6px">
+        <input type="checkbox" id="customerToggle" />
+        <span>Customer view</span>
+      </label>
+    </div>
+    <div class="right">
+      <span class="pill inline" id="blockCountPill">Blocks: 0 (active 0)</span>
+      <button class="btn" id="addBlockBtn" type="button">Add New Service</button>
+    </div>
+  </div>
+
+  <!-- MASTER SUMMARY -->
+  <div class="card" id="masterCard">
+    <div class="header"><h1>All Blocks — Summary</h1></div>
+    <div id="masterErr" class="notice"></div>
+
+    <div class="inputs">
+      <div class="controls-row">
+        <div class="group cust-hide">
+          <div class="label">Master Pass Control</div>
+          <div class="row-controls">
+            <button class="pill-btn" id="masterRemovePass" type="button">− Pass All</button>
+            <button class="pill-btn" id="masterAddPass" type="button">+ Pass All</button>
+          </div>
+        </div>
+
+        <div class="chip cust-hide">
+          <label for="masterMonths">Months</label>
+          <input id="masterMonths" type="number" min="1" max="12" step="1" />
+        </div>
+        <div class="chip cust-hide">
+          <label for="masterFloor">Min $/acre</label>
+          <input id="masterFloor" type="number" min="0" step="0.01" value="20" />
+        </div>
+        <div class="chip cust-hide">
+          <label for="masterDpp">$ / pin</label>
+          <input id="masterDpp" type="number" min="0" step="0.01" value="20" />
+        </div>
+      </div>
+
+      <div class="edit-under">
+        <button class="pill-btn cust-hide" id="editToggle" type="button" title="Edit master pass rows">Edit</button>
+        <span id="editByWrap" class="edit-inline cust-hide" style="display:none">
+          <span class="muted">Edit by</span>
+          <select id="editBy">
+            <option value="total" selected>Adjusted Total</option>
+            <option value="peracre">Adjusted $ / Acre</option>
+          </select>
+          <button class="pill-btn" id="editSave" type="button">Done</button>
+          <button class="pill-btn" id="editCancel" type="button">Cancel</button>
+        </span>
+      </div>
+    </div>
+
+    <div style="padding:0 12px 0">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th style="width:160px">Blocks Contributing</th>
+            <th style="width:120px">Pass</th>
+            <th>Cost / Acre</th>
+            <th class="col-adj-peracre">Adjusted Cost / Acre</th>
+            <th class="col-hours">Hours</th>
+            <th>Total Cost</th>
+            <th class="col-adj-total">Adjusted Total Cost</th>
+          </tr>
+        </thead>
+        <tbody id="masterPassRows"></tbody>
+        <tfoot>
+          <tr>
+            <td id="masterBlocksCell" style="text-align:center" class="muted">—</td>
+            <td style="text-align:center"># of Passes</td>
+            <td id="masterPassesCell" style="text-align:center" class="muted">—</td>
+            <td class="col-adj-peracre"></td>
+            <td id="masterHoursCell" class="col-hours" style="text-align:right">— h</td>
+            <td id="masterGrandCell" style="text-align:right"><div id="masterBaseTotal">$—</div></td>
+            <td id="masterAdjCell" class="col-adj-total" style="text-align:right">
+              <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap">
+                <span class="pill inline" id="masterAdjTotalPill">$—</span>
+                <button class="micro" id="masterDecPct" type="button">−1%</button>
+                <span id="masterPctLabel">+0%</span>
+                <button class="micro" id="masterIncPct" type="button">+1%</button>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Footer (no extras) -->
+    <div class="foot">
+      <div class="foot-topline">
+        <span class="accent" id="masterAcreInfoMuted">Included acres: — • Included pins: —</span>
+      </div>
+      <div class="foot-topline">
+        <span class="accent">Monthly (Services):</span>
+        <span class="pill inline" id="monthlyServicesPill">$—/mo</span>
+      </div>
+      <div class="foot-topline">
+        <span class="accent">Total per month:</span>
+        <span class="pill inline" id="masterMonthlyTotalPill">$—/mo</span>
+      </div>
+      <div class="foot-topline">
+        <span class="accent">Payment plan:</span>
+        <span class="pill inline" id="masterPaymentPill">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCKS -->
+  <div class="blocks" id="blocks"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ===== Helpers ===== */
+const $ = sel => document.querySelector(sel);
+const fmtUSD = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n||0);
+const round2 = v => Math.round((Number(v||0) + Number.EPSILON) * 100) / 100;
+const clamp  = (n,min,max) => Math.min(max, Math.max(min, n));
+const roundN = (v,n) => Math.round((Number(v)||0) * 10**n) / 10**n;
+function equalPayments(total, n){
+  n = Math.max(1, Math.trunc(n||1));
+  const each = round2(total / n);
+  const list = Array.from({length:n-1}, ()=> each);
+  list.push(round2(total - list.reduce((a,b)=>a+b,0)));
+  return list;
+}
+function readMaster(sel, fallback){
+  const el = document.querySelector(sel);
+  const raw = el ? el.value : '';
+  if (raw === '' || raw == null) return fallback;
+  const n = Number(raw);
+  return (Number.isFinite(n) && n >= 0) ? round2(n) : fallback;
+}
+
+/* ===== Core calc ===== */
+function calcBase(pinCount, acres, dollarsPerPin){
+  if (!Number.isFinite(pinCount) || Math.trunc(pinCount)!==pinCount || pinCount<0) throw new Error('Pin count must be a whole number >= 0');
+  if (!(acres>0)) throw new Error('Acres must be > 0');
+  if (!(dollarsPerPin>=0)) throw new Error('Price per pin must be >= 0');
+  const basePerAcre = (pinCount*dollarsPerPin)/acres;
+  const autoCount = basePerAcre < 50 ? 4 : (basePerAcre < 100 ? 5 : 6); // 100 => 6
+  return { basePerAcre, autoCount };
+}
+function calcWithCount(pinCount, acres, passCount, floorPerAcre, dollarsPerPin, overrides){
+  const { basePerAcre } = calcBase(pinCount, acres, dollarsPerPin);
+  const passes = [];
+  let prev = basePerAcre;
+  for (let i=1;i<=passCount;i++){
+    let rate = (i===1) ? basePerAcre : (prev/2);
+    let floored = false;
+
+    // Overrides win and can go below floor (needed for Set total / per-pass edits)
+    if (overrides && overrides[i] != null) {
+      rate = Number(overrides[i]);
+    } else if (rate < floorPerAcre){
+      rate = floorPerAcre; floored = true;
+    }
+
+    passes.push({ number:i, perAcre:rate, floored });
+    prev = rate;
+  }
+  const perAcreTotal = passes.reduce((s,p)=>s+p.perAcre,0);
+  const fieldTotal   = round2(perAcreTotal * acres);
+  return { basePerAcre, passCount, passes, perAcreTotal, fieldTotal };
+}
+
+/* ===== State ===== */
+let blocks = []; // {id,pins,acres,include,removedPasses,addedPasses,collapsed,overrides}
+let blockSeq = 1;
+let masterMonthsTouched = false;
+const editState = { active:false, by:'total' }; // master edit
+let masterAdjPct = 0;
+const blockEdit = {}; // per-block edit state: { [id]: {active:boolean, by:'total'|'peracre'} }
+
+/* Effective inputs (blank => inherit master) */
+function effFloorFor(b){
+  const el = $(`#floor-${b.id}`);
+  const raw = el ? el.value : '';
+  if (raw === '' || raw == null) return readMaster('#masterFloor', 20);
+  const v = Number(raw);
+  return (Number.isFinite(v) && v >= 0) ? round2(v) : readMaster('#masterFloor', 20);
+}
+function effDppFor(b){
+  const el = $(`#dpp-${b.id}`);
+  const raw = el ? el.value : '';
+  if (raw === '' || raw == null) return readMaster('#masterDpp', 20);
+  const v = Number(raw);
+  return (Number.isFinite(v) && v >= 0) ? round2(v) : readMaster('#masterDpp', 20);
+}
+
+/* Auto pass count: <50 =>4, 50–99.99 =>5, >=100 =>6 */
+function passCountFor(b){
+  const pins  = Math.trunc(Number($(`#pins-${b.id}`).value||0));
+  const acres = Number($(`#acres-${b.id}`).value||0) || 0.01;
+  const effDpp = effDppFor(b);
+  const { basePerAcre } = calcBase(pins, acres, effDpp);
+  const auto = (basePerAcre < 50) ? 4 : (basePerAcre < 100 ? 5 : 6);
+  return clamp(auto + (b.addedPasses||0) - (b.removedPasses||0), 1, 8);
+}
+
+/* ===== Block template ===== */
+function blockHTML(b){
+  return `
+  <div class="block${b.collapsed?' collapsed':''}" data-block-id="${b.id}">
+    <div class="title">
+      <div class="toggle-zone" id="toggle-zone-${b.id}" tabindex="0" role="button" aria-expanded="${!b.collapsed}">
+        <div class="tz-left">
+          <span class="pill-title">Block ${b.id}</span>
+          <span class="muted">• Pins: <span id="hdrPins-${b.id}">—</span></span>
+          <span class="muted">• Acres: <span id="hdrAcres-${b.id}">—</span></span>
+          <span class="muted cust-hours">• <span id="pillHours-${b.id}">0.00</span> h</span>
+          <span class="muted">• <span id="pillMonthly-${b.id}">$0.00/mo</span></span>
+        </div>
+        <div class="tz-right">
+          <span class="muted pill-floor" id="effectiveFloor-${b.id}"></span>
+          <span class="muted pill-dpp"   id="effectiveDpp-${b.id}"></span>
+          <label class="switch" id="include-wrap-${b.id}">
+            <input type="checkbox" id="include-${b.id}" ${b.include?'checked':''}>
+            <span id="include-label-${b.id}">Include</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="block-body">
+      <div id="err-${b.id}" class="notice"></div>
+
+      <div class="inputs">
+        <div class="controls-row">
+          <div class="chip">
+            <label for="pins-${b.id}">Pins</label>
+            <input id="pins-${b.id}" type="number" min="0" step="1" value="${b.pins}">
+          </div>
+          <div class="chip">
+            <label for="acres-${b.id}">Acres</label>
+            <input id="acres-${b.id}" type="number" min="0" step="0.01" value="${b.acres}">
+          </div>
+          <div class="chip">
+            <label for="floor-${b.id}">Min $/acre</label>
+            <input id="floor-${b.id}" type="number" min="0" step="0.01" placeholder="">
+          </div>
+          <div class="chip">
+            <label for="dpp-${b.id}">$ / pin</label>
+            <input id="dpp-${b.id}" type="number" min="0" step="0.01" placeholder="">
+          </div>
+
+          <div class="row-controls" style="margin-left:8px">
+            <button class="pill-btn" id="removePass-${b.id}" type="button">− Remove 1 Pass</button>
+            <button class="pill-btn" id="addPass-${b.id}" type="button">+ Add 1 Pass</button>
+          </div>
+        </div>
+
+        <div class="controls-row" style="margin-top:6px">
+          <div class="chip">
+            <label for="target-${b.id}">Set total</label>
+            <input id="target-${b.id}" type="number" min="0" step="0.01" placeholder="">
+          </div>
+          <button class="pill-btn" id="applyTarget-${b.id}" type="button">Apply</button>
+        </div>
+
+        <!-- Block-level edit controls -->
+        <div class="controls-row cust-hide" style="margin-top:4px">
+          <button class="pill-btn" id="editBlockToggle-${b.id}" type="button" title="Edit this block's pass rows">Edit</button>
+          <span id="editByBlockWrap-${b.id}" class="edit-inline" style="display:none">
+            <span class="muted">Edit by</span>
+            <select id="editByBlock-${b.id}">
+              <option value="total" selected>Adjusted Total</option>
+              <option value="peracre">Adjusted $ / Acre</option>
+            </select>
+            <button class="pill-btn" id="editBlockSave-${b.id}" type="button">Done</button>
+            <button class="pill-btn" id="editBlockCancel-${b.id}" type="button">Cancel</button>
+          </span>
+        </div>
+      </div>
+
+      <!-- Customer view: read-only mini summary -->
+      <div class="cust-only" style="padding:6px 10px">
+        <span class="pill inline">Pins: <span id="cPins-${b.id}">—</span></span>
+        <span class="pill inline">Acres: <span id="cAcres-${b.id}">—</span></span>
+      </div>
+
+      <div class="metrics" style="padding:6px 10px;display:flex;gap:6px;flex-wrap:wrap">
+        <span class="pill inline" id="base-${b.id}">Base: $— / acre</span>
+        <span class="pill inline" id="passcount-${b.id}">Passes: —</span>
+        <span class="pill inline" id="total-${b.id}">Whole-field total: $—</span>
+      </div>
+
+      <!-- Normal block grid -->
+      <div style="padding:0 10px 0">
+        <table class="grid block-grid">
+          <thead>
+            <tr>
+              <th style="width:120px">Pass</th>
+              <th>Cost / Acre</th>
+              <th class="col-hours">Hours</th>
+              <th>Total Cost</th>
+            </tr>
+          </thead>
+          <tbody id="rows-${b.id}"></tbody>
+          <tfoot>
+            <tr>
+              <td style="text-align:center"># of Passes</td>
+              <td id="passesCell-${b.id}" class="muted" style="text-align:center">—</td>
+              <td id="hoursCell-${b.id}" class="col-hours" style="text-align:right">— h</td>
+              <td id="grandCell-${b.id}" style="text-align:right">$—</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Customer view per-pass breakdown -->
+      <div style="padding:0 10px 0">
+        <table class="grid cust-grid">
+          <thead>
+            <tr>
+              <th style="width:120px">Pass</th>
+              <th>Cost / Acre</th>
+              <th>Total Cost</th>
+            </tr>
+          </thead>
+          <tbody id="custrows-${b.id}"></tbody>
+          <tfoot>
+            <tr>
+              <td style="text-align:center"># of Passes</td>
+              <td id="custpasses-${b.id}" class="muted" style="text-align:center">—</td>
+              <td id="custgrand-${b.id}" style="text-align:right">$—</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+    </div>
+  </div>`;
+}
+
+/* ===== Errors & overrides ===== */
+function clearMasterError(){ const e=$('#masterErr'); if(e){e.style.display='none'; e.textContent='';} }
+function setMasterError(msg){ const e=$('#masterErr'); if(e){ e.style.display='block'; e.textContent=msg; } }
+function setOverride(b, passIndex, rate){
+  if (!b.overrides) b.overrides = {};
+  b.overrides[passIndex] = roundN(rate, 5); // keep precision for $/acre
+}
+
+/* ===== "Set total" (per block) ===== */
+function adjustBlockTotal(b, targetAdjusted){
+  clearMasterError();
+  const id = b.id;
+
+  const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
+  const acres = Number($(`#acres-${id}`).value||0) || 0.01;
+
+  const passCount = passCountFor(b);
+  const effDpp    = effDppFor(b);
+  const factor    = 1 + (Number(masterAdjPct)||0)/100;
+  const T_adj     = Number(targetAdjusted||0);
+  if (!(T_adj>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
+
+  const T_base = round2(T_adj / factor);
+
+  const { basePerAcre } = calcBase(pins, acres, effDpp);
+  let series = [];
+  let r = basePerAcre;
+  for (let i=1;i<=passCount;i++){ series.push(r); r = r/2; }
+
+  const sumRates = series.reduce((a,c)=>a+c,0);
+  const targetSumRates = T_base / acres;
+  let rates;
+  if (sumRates <= 1e-9){
+    const each = targetSumRates / passCount;
+    rates = Array.from({length:passCount}, ()=> roundN(Math.max(0, each), 5));
+  } else {
+    const s = targetSumRates / sumRates;
+    rates = series.map(x => roundN(Math.max(0, x*s), 5)); // ignore floor by design
+  }
+
+  const adjustedOf = arr => {
+    let sum = 0;
+    for (const v of arr){
+      const passBase = round2(v * acres);
+      sum += round2(passBase * factor);
+    }
+    return round2(sum);
+  };
+
+  let achieved = adjustedOf(rates);
+  let delta = round2(T_adj - achieved);
+  for (let iter=0; iter<50 && Math.abs(delta) >= 0.01; iter++){
+    const j = rates.length - 1;
+    const deltaPerAcre = delta / (acres * factor);
+    rates[j] = roundN(Math.max(0, rates[j] + deltaPerAcre), 5);
+    achieved = adjustedOf(rates);
+    delta = round2(T_adj - achieved);
+  }
+
+  b.overrides = {};
+  for (let i=0;i<rates.length;i++) setOverride(b, i+1, rates[i]);
+}
+
+/* ===== Block-level edit (single pass) ===== */
+function applyBlockEdit(blockId, passIndex1, mode, targetAdjustedValue){
+  clearMasterError();
+  const b = blocks.find(x=>x.id===blockId); if (!b) return;
+
+  const acres = Number($(`#acres-${blockId}`).value||0) || 0.01;
+  const factor = 1 + (Number(masterAdjPct)||0)/100;
+
+  const v = Number(targetAdjustedValue);
+  if (!(v>=0)){ setMasterError(`Block ${blockId}: enter a valid value.`); return; }
+
+  if (mode === 'peracre'){
+    // v is Adjusted $/acre → store base $/acre
+    const baseRate = roundN(v / factor, 5);
+    setOverride(b, passIndex1, Math.max(0, baseRate));
+  } else {
+    // mode === 'total'; v is Adjusted Total for this pass
+    const baseRate = roundN((v / factor) / acres, 5);
+    setOverride(b, passIndex1, Math.max(0, baseRate));
+  }
+}
+
+/* ===== Master edit across blocks ===== */
+function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
+  clearMasterError();
+
+  const factor = 1 + (Number(masterAdjPct)||0)/100;
+  const idx = passIndex1 - 1;
+
+  const items = []; // {b, acres, floor, baseRate}
+  for (const b of blocks){
+    if (!b.include) continue;
+
+    const id = b.id;
+    const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
+    const acres = Number($(`#acres-${id}`).value||0);
+    if (!(acres>0)) continue;
+
+    const effFloor = effFloorFor(b);
+    const effDpp   = effDppFor(b);
+
+    const pCount = passCountFor(b);
+    if (idx >= pCount) continue;
+
+    const q = calcWithCount(pins, acres, pCount, effFloor, effDpp, b.overrides);
+    const r = q.passes[idx].perAcre;
+    items.push({ b, acres, floor: effFloor, baseRate: r });
+  }
+
+  if (items.length===0){ setMasterError('No blocks contribute to this pass.'); return; }
+
+  if (mode === 'peracre'){
+    const targetAdjPerAcre = Number(targetAdjustedValue);
+    if (!(targetAdjPerAcre>=0)){ setMasterError('Enter a valid adjusted $/acre.'); return; }
+    const targetBasePerAcre = round2(targetAdjPerAcre / factor);
+    for (const it of items){
+      const newRate = Math.max(0, targetBasePerAcre);
+      setOverride(it.b, passIndex1, newRate);
+    }
+    return;
+  }
+
+  const targetAdjTotal = Number(targetAdjustedValue);
+  if (!(targetAdjTotal>=0)){ setMasterError('Enter a valid adjusted total.'); return; }
+  const targetBaseTotal = round2(targetAdjTotal / factor);
+
+  let rates = items.map(it => Math.max(it.floor, it.baseRate));
+  const acresArr = items.map(it => it.acres);
+
+  const sumBase = (ratesArr)=>{
+    let s=0; for (let i=0;i<ratesArr.length;i++) s += round2(ratesArr[i]*acresArr[i]); return round2(s);
+  };
+
+  const cur = sumBase(rates);
+  if (cur>0){
+    const s = targetBaseTotal / cur;
+    rates = rates.map(r => roundN(Math.max(0, r*s), 5));
+    for (let i=0;i<rates.length;i++) if (rates[i] < items[i].floor) rates[i] = items[i].floor;
+  }
+
+  let achieved = sumBase(rates);
+  for (let iter=0; iter<30 && Math.abs(achieved - targetBaseTotal) > 0.01; iter++){
+    const delta = targetBaseTotal - achieved;
+    const movable = [];
+    for (let i=0;i<rates.length;i++){
+      if (delta>=0) movable.push(i);
+      else if (rates[i] > items[i].floor + 1e-9) movable.push(i);
+    }
+    if (movable.length===0) break;
+
+    const movableAcres = movable.reduce((s,i)=> s + acresArr[i], 0);
+    if (movableAcres<=0) break;
+
+    const dPerAcre = delta / movableAcres;
+    for (const i of movable){
+      rates[i] = roundN(rates[i] + dPerAcre, 5);
+      if (rates[i] < items[i].floor) rates[i] = items[i].floor;
+    }
+    achieved = sumBase(rates);
+  }
+
+  let achievedAdj = round2(sumBase(rates) * factor);
+  let deltaAdj = round2(targetAdjTotal - achievedAdj);
+  if (Math.abs(deltaAdj) >= 0.01){
+    let j = rates.length - 1;
+    for (let k = rates.length - 1; k >= 0; k--){
+      if (rates[k] > items[k].floor + 1e-9){ j = k; break; }
+    }
+    const deltaPerAcre = deltaAdj / (acresArr[j] * factor);
+    rates[j] = roundN(Math.max(items[j].floor, rates[j] + deltaPerAcre), 5);
+  }
+
+  for (let i=0;i<rates.length;i++){
+    setOverride(items[i].b, passIndex1, rates[i]);
+  }
+}
+
+/* ===== Render ===== */
+function renderAll(){
+  try{
+    const floor = readMaster('#masterFloor', 20);
+    const dpp   = readMaster('#masterDpp', 20);
+    const factor = 1 + (Number(masterAdjPct)||0)/100;
+
+    const inCustomer = document.body.classList.contains('customer');
+
+    // Master edit UI
+    $('#editByWrap').style.display = (!inCustomer && editState.active ? 'inline-flex' : 'none');
+    $('#editToggle').style.display = (!inCustomer && !editState.active ? 'inline-flex' : 'none');
+
+    const masterRows = [];
+    let totalActiveAcres = 0, activeBlocks = 0, includedPins = 0;
+
+    let months = Number($('#masterMonths').value);
+    if (!Number.isFinite(months) || months<1) months = 1;
+
+    for (const b of blocks){
+      const err = $(`#err-${b.id}`);
+      const include = $(`#include-${b.id}`).checked;
+      b.include = include;
+      const blockEl = document.querySelector(`.block[data-block-id="${b.id}"]`);
+      blockEl.classList.toggle('inactive', !include);
+
+      try{
+        if (err) err.style.display='none';
+
+        const pins  = Math.trunc(Number($(`#pins-${b.id}`).value||0));
+        const acres = Number($(`#acres-${b.id}`).value||0);
+
+        const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
+        const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value) >= 0)
+          ? round2(Number(floorIn.value)) : floor;
+        const effDpp   = (dppIn.value!==''   && Number.isFinite(Number(dppIn.value))   && Number(dppIn.value)   >= 0)
+          ? round2(Number(dppIn.value))   : dpp;
+
+        const pCount = passCountFor(b);
+        const q = calcWithCount(pins, acres, pCount, effFloor, effDpp, b.overrides);
+
+        // pill header meta
+        $(`#hdrPins-${b.id}`).textContent  = Number.isFinite(pins)?pins:'—';
+        $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
+        $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
+        $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
+
+        // Block edit UI visibility & mode sync
+        const be = blockEdit[b.id] || {active:false, by:'total'};
+        const wrap = $(`#editByBlockWrap-${b.id}`);
+        const togg = $(`#editBlockToggle-${b.id}`);
+        if (wrap) wrap.style.display = (!inCustomer && be.active) ? 'inline-flex' : 'none';
+        if (togg) togg.style.display = (!inCustomer && !be.active) ? 'inline-flex' : 'none';
+        const sel = $(`#editByBlock-${b.id}`);
+        if (sel) sel.value = be.by;
+
+        // Build tables
+        const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
+        const ctbody = $(`#custrows-${b.id}`); ctbody.innerHTML = '';
+        let blockBaseTotal = 0, blockAdjTotal = 0, blockHours = 0;
+        let custAdjTotal = 0;
+
+        for (const p of q.passes){
+          const passBase  = round2(p.perAcre * acres);
+          const passAdj   = round2(passBase * factor);
+          const hours     = round2(passBase / 120);
+
+          blockBaseTotal += passBase;
+          blockAdjTotal  += passAdj;
+          blockHours     += hours;
+
+          const editingBlock = (!inCustomer && be.active);
+          const byTotal = be.by === 'total';
+
+          const costCell = editingBlock && !byTotal
+            ? `<div class="edit-cell"><input class="edit-input" type="number" step="0.01" min="0" value="${round2(p.perAcre*factor)}" data-block="${b.id}" data-pass="${p.number}" data-mode="peracre" /></div>`
+            : `${fmtUSD(round2(p.perAcre))}`;
+
+          const totalCell = editingBlock && byTotal
+            ? `<div class="edit-cell"><input class="edit-input" type="number" step="0.01" min="0" value="${passAdj}" data-block="${b.id}" data-pass="${p.number}" data-mode="total" /></div>`
+            : `${fmtUSD(passAdj)}`;
+
+          // normal row
+          const tr = document.createElement('tr');
+          if (p.number===1) tr.classList.add('row-hi');
+          tr.innerHTML = `
+            <td style="text-align:center">Pass ${p.number}${p.floored?' *':''}</td>
+            <td>${costCell}</td>
+            <td class="col-hours">${hours.toFixed(2)} h</td>
+            <td>${totalCell}</td>`;
+          tbody.appendChild(tr);
+
+          // customer row
+          const ctr = document.createElement('tr');
+          if (p.number===1) ctr.classList.add('row-hi');
+          const adjPerAcre = round2(p.perAcre * factor);
+          ctr.innerHTML = `
+            <td style="text-align:center">Pass ${p.number}</td>
+            <td>${fmtUSD(adjPerAcre)}</td>
+            <td>${fmtUSD(passAdj)}</td>`;
+          ctbody.appendChild(ctr);
+          custAdjTotal += passAdj;
+
+          if (include){
+            const idx = p.number-1;
+            if (!masterRows[idx]) masterRows[idx] = { baseTotal:0, adjTotal:0, acres:0, contrib:0 };
+            masterRows[idx].baseTotal += passBase;
+            masterRows[idx].adjTotal  += passAdj;
+            masterRows[idx].acres     += acres;
+            masterRows[idx].contrib   += 1;
+          }
+        }
+
+        $(`#base-${b.id}`).textContent      = `Base: ${fmtUSD(round2(calcBase(pins, acres, effDpp).basePerAcre))} / acre`;
+        $(`#passcount-${b.id}`).textContent = `Passes: ${q.passCount}`;
+        $(`#grandCell-${b.id}`).textContent = fmtUSD(blockAdjTotal);
+        $(`#hoursCell-${b.id}`).textContent = `${blockHours.toFixed(2)} h`;
+        $(`#custgrand-${b.id}`).textContent = fmtUSD(custAdjTotal);
+        $(`#custpasses-${b.id}`).textContent = q.passCount;
+
+        $(`#pillHours-${b.id}`).textContent   = blockHours.toFixed(2);
+        const perMonthServices = round2(blockAdjTotal / (Number($('#masterMonths').value)||1));
+        $(`#pillMonthly-${b.id}`).textContent = `${fmtUSD(perMonthServices)}/mo`;
+        $(`#total-${b.id}`).textContent = `Whole-field total: ${fmtUSD(blockAdjTotal)}`;
+
+        if (include){ totalActiveAcres += acres; includedPins += pins; activeBlocks++; }
+      }catch(inner){
+        if (err){ err.style.display='block'; err.textContent = inner.message; }
+        console.error(inner);
+      }
+    }
+
+    $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
+
+    // Master rows
+    const mBody = $('#masterPassRows'); mBody.innerHTML = '';
+    let baseTotal = 0, adjTotal = 0, masterHours = 0;
+    for (let i=0;i<masterRows.length;i++){
+      const row = masterRows[i]; if (!row) continue;
+      const baseRowTotal = round2(row.baseTotal);
+      const adjRowTotal  = round2(row.adTotal || row.adjTotal); // guard
+      const basePerAcre  = row.acres>0 ? round2(baseRowTotal/row.acres) : 0;
+      const adjPerAcre   = row.acres>0 ? round2(adjRowTotal/row.acres)  : 0;
+      const hoursPass    = round2(baseRowTotal/120);
+
+      baseTotal += baseRowTotal; adjTotal += adjRowTotal; masterHours += hoursPass;
+
+      const displayTotal = document.body.classList.contains('customer') ? adjRowTotal : baseRowTotal;
+
+      const editing = !document.body.classList.contains('customer') && editState.active;
+      const byTotal = editState.by === 'total';
+
+      const adjPerAcreCell = editing && !byTotal
+        ? `<div class="edit-cell"><input class="edit-input" type="number" step="0.01" min="0" value="${adjPerAcre}" data-pass="${i+1}" data-mode="peracre" /></div>`
+        : `${fmtUSD(adjPerAcre)}`;
+
+      const adjTotalCell = editing && byTotal
+        ? `<div class="edit-cell"><input class="edit-input" type="number" step="0.01" min="0" value="${adjRowTotal}" data-pass="${i+1}" data-mode="total" /></div>`
+        : `${fmtUSD(adjRowTotal)}`;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align:center">${row.contrib||0}/${activeBlocks}</td>
+        <td style="text-align:center">Pass ${i+1}</td>
+        <td>${fmtUSD(basePerAcre)}</td>
+        <td class="col-adj-peracre">${adjPerAcreCell}</td>
+        <td class="col-hours">${hoursPass.toFixed(2)} h</td>
+        <td>${fmtUSD(displayTotal)}</td>
+        <td class="col-adj-total">${adjTotalCell}</td>`;
+      if (i===0) tr.classList.add('row-hi');
+      mBody.appendChild(tr);
+    }
+
+    $('#masterPassesCell').textContent = mBody.children.length || '—';
+    $('#masterHoursCell').textContent  = `${masterHours.toFixed(2)} h`;
+    $('#masterBlocksCell').textContent = `${activeBlocks}/${blocks.length}`;
+    const baseShown = document.body.classList.contains('customer') ? adjTotal : baseTotal;
+    $('#masterBaseTotal').textContent = fmtUSD(round2(baseShown));
+    $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
+    $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
+
+    // months & payments (no extras)
+    let monthsVal = Number($('#masterMonths').value);
+    const maxPass = mBody.children.length || 1;
+    if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; $('#masterMonths').value = monthsVal; }
+    monthsVal = clamp(Math.trunc(monthsVal), 1, 12);
+    if (String(monthsVal)!==$('#masterMonths').value) $('#masterMonths').value = monthsVal;
+
+    const monthlyServices = round2(adjTotal / monthsVal);
+    $('#monthlyServicesPill').textContent = fmtUSD(monthlyServices) + '/mo';
+    $('#masterMonthlyTotalPill').textContent = fmtUSD(monthlyServices) + '/mo';
+
+    const grandDue = round2(adjTotal);
+    const payments = equalPayments(grandDue, monthsVal);
+    $('#masterPaymentPill').textContent = `${monthsVal} payments of ${fmtUSD(payments[0]||0)}`;
+
+    $('#masterAcreInfoMuted').textContent = `Included acres: ${round2(totalActiveAcres)} • Included pins: ${includedPins}`;
+  }catch(e){ console.error(e); }
+}
+
+/* ===== Blocks add ===== */
+function addNewBlock({pins=0, acres=1, collapsed=true}={}){
+  const id = blockSeq++;
+  const b = { id, pins:Math.trunc(pins), acres:(acres>0?acres:1), include:true, removedPasses:0, addedPasses:0, collapsed, overrides:{} };
+  blocks.push(b);
+  $('#blocks').insertAdjacentHTML('beforeend', blockHTML(b));
+  renderAll();
+}
+
+/* ===== Events ===== */
+function wireEvents(){
+  $('#customerToggle').addEventListener('change', (e)=>{
+    document.body.classList.toggle('customer', e.target.checked);
+    renderAll();
+  });
+
+  // master inputs
+  $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
+  $('#masterFloor').addEventListener('input', renderAll);
+  $('#masterDpp').addEventListener('input', renderAll);
+
+  // Master edit controls
+  $('#editToggle').addEventListener('click', ()=>{
+    editState.active = true;
+    renderAll();
+    const first = document.querySelector('#masterPassRows .edit-input');
+    if (first) first.focus();
+  });
+  $('#editBy').addEventListener('change', (e)=>{ editState.by = e.target.value; renderAll(); });
+  $('#editCancel').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
+  $('#editSave').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
+
+  // Master inline commit
+  $('#masterPassRows').addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' && e.target.classList.contains('edit-input')){
+      const pass = Number(e.target.dataset.pass);
+      const mode = e.target.dataset.mode;
+      const val  = Number(e.target.value);
+      applyMasterEdit(pass, mode, val);
+      renderAll();
+    }
+  });
+  $('#masterPassRows').addEventListener('blur', (e)=>{
+    if (e.target.classList.contains('edit-input')){
+      const pass = Number(e.target.dataset.pass);
+      const mode = e.target.dataset.mode;
+      const val  = Number(e.target.value);
+      applyMasterEdit(pass, mode, val);
+      renderAll();
+    }
+  }, true);
+
+  // master pass control
+  $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
+  $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
+
+  // % adjuster
+  $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
+  $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
+
+  // Add block
+  $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
+
+  // Block events (delegated)
+  const blocksEl = $('#blocks');
+  blocksEl.addEventListener('click', (e)=>{
+    if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
+    const btn = e.target.closest('button');
+
+    if (btn && btn.id.startsWith('addPass-')){
+      const id = Number(btn.id.replace('addPass-',''));
+      const b = blocks.find(x=>x.id===id); if (!b) return;
+      b.addedPasses = (b.addedPasses||0)+1;
+      renderAll(); return;
+    }
+    if (btn && btn.id.startsWith('removePass-')){
+      const id = Number(btn.id.replace('removePass-',''));
+      const b = blocks.find(x=>x.id===id); if (!b) return;
+      if ((b.addedPasses||0)>0) b.addedPasses -= 1;
+      else b.removedPasses = (b.removedPasses||0) + 1;
+      renderAll(); return;
+    }
+    if (btn && btn.id.startsWith('applyTarget-')){
+      const id = Number(btn.id.replace('applyTarget-',''));
+      const b = blocks.find(x=>x.id===id); if (!b) return;
+      const val = Number($(`#target-${id}`).value);
+      if (!(val>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
+      adjustBlockTotal(b, val);
+      renderAll(); return;
+    }
+
+    // Block-level edit buttons
+    if (btn && btn.id.startsWith('editBlockToggle-')){
+      const id = Number(btn.id.replace('editBlockToggle-',''));
+      blockEdit[id] = blockEdit[id] || {active:false, by:'total'};
+      blockEdit[id].active = true;
+      renderAll(); return;
+    }
+    if (btn && btn.id.startsWith('editBlockCancel-')){
+      const id = Number(btn.id.replace('editBlockCancel-',''));
+      blockEdit[id] = blockEdit[id] || {active:false, by:'total'};
+      blockEdit[id].active = false;
+      renderAll(); return;
+    }
+    if (btn && btn.id.startsWith('editBlockSave-')){
+      const id = Number(btn.id.replace('editBlockSave-',''));
+      blockEdit[id] = blockEdit[id] || {active:false, by:'total'};
+      blockEdit[id].active = false;
+      renderAll(); return;
+    }
+
+    const tz = e.target.closest('.toggle-zone');
+    if (tz){
+      const id = Number(tz.id.replace('toggle-zone-',''));
+      const blockEl = document.querySelector(`.block[data-block-id="${id}"]`);
+      const collapsed = blockEl.classList.toggle('collapsed');
+      tz.setAttribute('aria-expanded', String(!collapsed));
+      return;
+    }
+  });
+
+  blocksEl.addEventListener('change', (e)=>{
+    // per-block edit "by" selector
+    if (e.target.id && e.target.id.startsWith('editByBlock-')){
+      const id = Number(e.target.id.replace('editByBlock-',''));
+      blockEdit[id] = blockEdit[id] || {active:true, by:'total'};
+      blockEdit[id].by = e.target.value;
+      renderAll();
+      return;
+    }
+    if (/^(pins-|acres-|floor-|dpp-|include-)/.test(e.target.id)) renderAll();
+  });
+
+  // Commit per-block edits on Enter/blur
+  blocksEl.addEventListener('keydown', (e)=>{
+    if (e.key==='Enter' && e.target.classList.contains('edit-input') && e.target.dataset.block){
+      const bid  = Number(e.target.dataset.block);
+      const pass = Number(e.target.dataset.pass);
+      const mode = e.target.dataset.mode;
+      const val  = Number(e.target.value);
+      applyBlockEdit(bid, pass, mode, val);
+      renderAll();
+    }
+    if (e.key==='Enter' && e.target.id && e.target.id.startsWith('target-')){
+      const id = Number(e.target.id.replace('target-',''));
+      const b = blocks.find(x=>x.id===id); if (!b) return;
+      const val = Number($(`#target-${id}`).value);
+      if (!(val>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
+      adjustBlockTotal(b, val);
+      renderAll();
+    }
+  });
+  blocksEl.addEventListener('blur', (e)=>{
+    if (e.target.classList.contains('edit-input') && e.target.dataset.block){
+      const bid  = Number(e.target.dataset.block);
+      const pass = Number(e.target.dataset.pass);
+      const mode = e.target.dataset.mode;
+      const val  = Number(e.target.value);
+      applyBlockEdit(bid, pass, mode, val);
+      renderAll();
+    }
+  }, true);
+
+  blocksEl.addEventListener('input', (e)=>{
+    if (/^(pins-|acres-|floor-|dpp-)/.test(e.target.id)) renderAll();
   });
 }
 
