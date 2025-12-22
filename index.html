@@ -3,36 +3,52 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Smokin’ Burrow – JS Quoting (fixed)</title>
+<title>Smokin’ Burrow – Quoting (Green)</title>
 <style>
   :root{
-    --brown:#6a4b2f; --green:#0b6b3a; --line:#e7e3df; --pill:#f3f1ee; --muted:#777;
+    --green:#0b6b3a;
+    --green-2:#0e7f45;
+    --line:#e7e3df;
+    --pill:#f5f7f5;
+    --text:#222;
+    --muted:#6d6d6d;
+    --accent:#d7efe1;
   }
   *{box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#222;background:#fff}
-  header{background:var(--brown);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px}
+  html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:#fff}
+  header{display:flex;align-items:center;gap:16px;padding:10px 16px;background:var(--green);color:#fff;border-bottom:2px solid #08542c}
   header .brand{font-weight:700}
-  main{max-width:1100px;margin:0 auto;padding:16px}
-  .panel{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px;margin:12px 0}
+  main{max-width:1150px;margin:0 auto;padding:16px}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:12px;margin:12px 0;background:#fff}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #c8b8ac;background:var(--pill);border-radius:999px;padding:8px 12px}
-  .pill input{width:110px;border:1px solid #c8b8ac;border-radius:999px;padding:6px 10px;background:#fff}
-  .pill.small input{width:90px}
-  .btn{cursor:pointer;border:1px solid #bda797;background:#fff;border-radius:999px;padding:8px 12px}
-  .btn.small{padding:4px 8px}
-  .stat{display:flex;flex-direction:column;gap:4px}
+  .controls-row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+  .control{display:flex;flex-direction:column;gap:6px}
+  .control .title{font-size:12px;color:var(--muted);margin-left:6px}
+  .pill{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 12px;border:1px solid #cfd7cf;background:var(--pill)}
+  .pill-input{border:1px solid #cfd7cf;border-radius:999px;padding:8px 12px;background:#fff;min-width:110px}
+  .pill-input.small{min-width:90px}
+  .pill-btn{cursor:pointer;border:1px solid #cfd7cf;border-radius:999px;background:#fff;padding:8px 12px}
+  .pill-btn.primary{background:var(--accent);border-color:#bfe8cd}
+  .pill-btn:active{transform:translateY(1px)}
   .value{font-weight:700}
-  .value.green{color:var(--green)}
+  .value.accent{color:var(--green)}
+  .stat{display:flex;flex-direction:column;gap:4px}
   .muted{color:var(--muted)}
-  .block-pill{display:flex;align-items:center;gap:10px;background:var(--pill);border:1px solid #c8b8ac;border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer}
+  .summary{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-top:8px}
+  .pass-table-wrap{overflow:auto}
+  table{border-collapse:separate;border-spacing:0;width:100%}
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:right}
+  th:nth-child(1),td:nth-child(1){text-align:center}
+  th:nth-child(2),td:nth-child(2){text-align:center}
+  thead th{color:var(--muted);font-weight:600}
+  .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .panel-title{font-size:16px;font-weight:700;color:var(--green)}
+  .block-pill{display:flex;align-items:center;gap:10px;background:var(--pill);border:1px solid #cfd7cf;border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer}
   .block-pill .right{margin-left:auto;display:flex;gap:8px;align-items:center}
   .block-card{border:1px solid var(--line);border-radius:12px;padding:12px;margin:-4px 0 10px 0;background:#fff}
   .hidden{display:none}
-  table{border-collapse:separate;border-spacing:0;width:100%}
-  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
-  th:nth-child(1),td:nth-child(1){text-align:center}
-  th:nth-child(2),td:nth-child(2){text-align:center}
-  .badge{padding:3px 10px;border-radius:999px;background:#eee;border:1px solid #ccc;font-size:12px}
+  .badge{padding:3px 10px;border-radius:999px;background:#eef7f0;border:1px solid #d2e9d8;font-size:12px;color:var(--green)}
+  .small-muted{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -41,77 +57,120 @@
 </header>
 
 <main>
-  <!-- MASTER CONTROLS -->
+  <!-- MASTER CONTROLS (green look preserved) -->
   <section class="panel">
-    <div class="row">
-      <span class="pill"><label>Min $/acre</label><input id="minAcre" type="number" step="0.01" value="20"></span>
-      <span class="pill"><label>$ / pin</label><input id="dpp" type="number" step="0.01" value="20"></span>
-      <span class="pill small"><label>% adjust</label><input id="adjPct" type="number" step="1" value="0"></span>
-      <button id="adjMinus" class="btn small">−1%</button>
-      <button id="adjPlus" class="btn small">+1%</button>
+    <div class="controls-row">
+      <div class="control">
+        <div class="title">Master pass control</div>
+        <div class="row">
+          <button id="passMinusAll" class="pill-btn">− pass all</button>
+          <button id="passPlusAll"  class="pill-btn">+ pass all</button>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="title">Min $/acre</div>
+        <div class="row"><input id="floor" class="pill-input" type="number" step="0.01" value="20"></div>
+      </div>
+
+      <div class="control">
+        <div class="title">$ / pin</div>
+        <div class="row"><input id="dpp" class="pill-input" type="number" step="0.01" value="20"></div>
+      </div>
+
+      <div class="control">
+        <div class="title">% adjust</div>
+        <div class="row">
+          <button id="adjMinus" class="pill-btn">−1%</button>
+          <input id="adjPct" class="pill-input small" type="number" step="1" value="0">
+          <button id="adjPlus" class="pill-btn">+1%</button>
+        </div>
+      </div>
     </div>
-    <div class="row" style="margin-top:8px">
+
+    <div class="summary">
+      <div class="stat"><span class="muted">Included acres</span><span id="includedAcres" class="value">0.00</span></div>
+      <div class="stat"><span class="muted">Included pins</span><span id="includedPins" class="value">0</span></div>
       <div class="stat"><span class="muted">Total cost (base + extras)</span><span id="totalBase" class="value">$0.00</span></div>
-      <div class="stat"><span class="muted">Adjusted total</span><span id="totalAdj" class="value green">$0.00</span></div>
+      <div class="stat"><span class="muted">Adjusted total</span><span id="totalAdj" class="value accent">$0.00</span></div>
+    </div>
+  </section>
+
+  <!-- MASTER PASS TABLE -->
+  <section class="panel">
+    <div class="pass-table-wrap">
+      <table id="masterRows">
+        <thead>
+          <tr>
+            <th>Contrib</th>
+            <th>Pass</th>
+            <th>$ / acre</th>
+            <th>Adj $ / acre</th>
+            <th>Hours</th>
+            <th>Base total</th>
+            <th>Adj total</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </section>
 
   <!-- BLOCKS -->
   <section class="panel">
-    <div class="row" style="justify-content:space-between">
-      <div class="value" style="color:var(--brown)">Blocks</div>
-      <button id="addBlock" class="btn">+ Add block</button>
+    <div class="panel-header">
+      <div class="panel-title">Blocks</div>
+      <div class="panel-actions">
+        <button id="addBlock" class="pill-btn primary">+ Add block</button>
+      </div>
     </div>
     <div id="blocks"></div>
   </section>
 </main>
 
 <script>
-/* ========= Utilities ========= */
+// ===== Utilities =====
 const $ = (s, r=document)=>r.querySelector(s);
 const $$ = (s, r=document)=>[...r.querySelectorAll(s)];
-const roundN = (n, dp)=> Math.sign(n) * Math.round(Math.abs(n) * Math.pow(10,dp)) / Math.pow(10,dp);
-const r2 = n => roundN(n, 2);
-const r4 = n => roundN(n, 4);
+const rN = (n,dp)=> Math.sign(n)*Math.round(Math.abs(n)*10**dp)/10**dp;
+const r2 = n => rN(n,2);
+const r4 = n => rN(n,4);
 const fmt = n => (Number.isFinite(n)? r2(n) : 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 
-/* ========= State ========= */
-const state = {
-  master: { floorPerAcre: 20, dollarsPerPin: 20, adjPct: 0 },
+// ===== State =====
+const STATE = {
+  master: { floorPerAcre:20, dollarsPerPin:20, adjPct:0 },
   blocks: [
-    // demo data; your app will create these from real data
-    { id:1, label:'Block 1', pins:400, acres:54, include:true, added:0, removed:0, overrides:null },
-    { id:2, label:'Block 2', pins:250, acres:32.5, include:true, added:0, removed:0, overrides:null }
+    { id:1, label:'Block 1', pins:400, acres:54, include:true, addedPasses:0, removedPasses:0, owlQty:0, overrides:null },
+    { id:2, label:'Block 2', pins:250, acres:32.5, include:true, addedPasses:0, removedPasses:0, owlQty:0, overrides:null }
   ]
 };
 
-/* ========= Core math (JS mirror of your C# rules) ========= */
-function passCountFromBase(basePerAcre){
+// ===== Core math (green version mirrors your C#) =====
+function passCount(basePerAcre){
   if (basePerAcre < 50) return 4;
   if (basePerAcre < 100) return 5;
-  return 6; // 100 exactly -> 6
+  return 6; // 100 exactly => 6
 }
 
 function computeBlock(b, master){
-  const floor = master.floorPerAcre;
-  const dpp = master.dollarsPerPin;
+  const floor  = master.floorPerAcre;
+  const dpp    = master.dollarsPerPin;
   const factor = 1 + (master.adjPct/100);
 
-  // (1) base $/acre
   const basePerAcre = (b.pins * dpp) / Math.max(0.0000001, b.acres);
-  // (2)+(3) pass count + clamp 1..8
-  const auto = passCountFromBase(basePerAcre);
-  const passCount = Math.min(8, Math.max(1, auto + (b.added||0) - (b.removed||0)));
+  const auto = passCount(basePerAcre);
+  const count = Math.min(8, Math.max(1, auto + (b.addedPasses||0) - (b.removedPasses||0)));
 
   const passes = [];
   let prev = basePerAcre;
-  let perAcreSum = 0, baseTot = 0, hoursTot = 0;
+  let perAcreSum=0, baseTot=0, hoursTot=0;
 
-  for (let i=1;i<=passCount;i++){
+  for (let i=1;i<=count;i++){
     let rate = (i===1)? basePerAcre : prev/2;
     let floored = false;
 
-    // If overrides exist (from Set Total), we use them EXACTLY and ignore floor
+    // If overrides exist from 'Set Total', use EXACT values and ignore floor for this block
     if (b.overrides && b.overrides[i] != null){
       rate = b.overrides[i];
     } else {
@@ -131,137 +190,180 @@ function computeBlock(b, master){
 
   return {
     id:b.id, label:b.label, pins:b.pins, acres:b.acres, include:b.include!==false,
-    passCount, passes,
-    perAcreTotal: r2(perAcreSum),
-    baseTotal: r2(baseTot),
-    adjustedTotal: r2(baseTot * factor),
-    hours: r2(hoursTot)
+    passCount:count, passes,
+    perAcreTotal:r2(perAcreSum),
+    baseTotal:r2(baseTot),
+    adjustedTotal:r2(baseTot * factor),
+    hours:r2(hoursTot)
   };
 }
 
 function computeAll(){
-  const master = state.master;
-  const results = state.blocks.map(b => computeBlock(b, master));
-  const included = results.filter(b => state.blocks.find(x=>x.id===b.id).include !== false);
-  let base = 0, adj = 0;
-  included.forEach(b => { base += b.baseTotal; adj += b.adjustedTotal; });
-  return { masterTotals: { base:r2(base), adjusted:r2(adj) }, blocks: results };
+  const res = STATE.blocks.map(b=>computeBlock(b, STATE.master));
+  const inc = res.filter(b => STATE.blocks.find(x=>x.id===b.id).include !== false);
+
+  let base=0, adj=0, hours=0, acres=0, pins=0;
+  let maxPass = 0;
+  inc.forEach(b => {
+    base += b.baseTotal; adj += b.adjustedTotal; hours += b.hours;
+    acres += b.acres; pins += b.pins;
+    if (b.passCount > maxPass) maxPass = b.passCount;
+  });
+
+  // build master rows
+  const rows = [];
+  for (let p=1; p<=maxPass; p++){
+    let rowBase=0, rowAdj=0, rowAcres=0, contrib=0;
+    inc.forEach(b => {
+      if (b.passCount >= p){
+        const pr = b.passes[p-1];
+        rowBase += pr.passBase;
+        rowAdj  += pr.passAdjusted;
+        rowAcres += b.acres;
+        contrib++;
+      }
+    });
+    rows.push({
+      pass:p,
+      contributing:contrib,
+      activeBlocks:inc.length,
+      basePerAcre: rowAcres>0? r2(rowBase/rowAcres):0,
+      adjPerAcre:  rowAcres>0? r2(rowAdj /rowAcres):0,
+      hours: r2(rowBase/120),
+      baseTotal: r2(rowBase),
+      adjTotal:  r2(rowAdj)
+    });
+  }
+
+  return {
+    master:{
+      includedAcres:r2(acres), includedPins:pins,
+      baseTotal:r2(base), adjustedTotal:r2(adj), hours:r2(hours),
+      rows
+    },
+    blocks:res
+  };
 }
 
-/* ========= Set Total logic (overrides per-pass rates for THAT BLOCK) =========
-   Target is ADJUSTED total for the block (after % adjust).
-   We re-scale the *unfloored* halving series so the adjusted sum hits the target.
-   This intentionally OVERRIDES both $/pin and min $/acre for that block.
-*/
+// ===== Set Total logic (per-block). Overrides both $/pin & floor for that block. =====
 function setBlockTotal(blockId, targetAdjusted){
-  const b = state.blocks.find(x=>x.id===blockId);
-  if(!b) return;
-
-  const factor = 1 + (state.master.adjPct/100);
-  const targetBase = targetAdjusted / factor;
+  const b = STATE.blocks.find(x=>x.id===blockId);
+  if (!b) return;
+  const factor = 1 + (STATE.master.adjPct/100);
+  const targetBase = r2(Number(targetAdjusted||0)/factor);
   const acres = Math.max(0.0000001, b.acres);
 
-  // derive original series (UNFLOORED), based on current global $/pin
-  const basePerAcre = (b.pins * state.master.dollarsPerPin) / acres;
-  const auto = passCountFromBase(basePerAcre);
-  const passCount = Math.min(8, Math.max(1, auto + (b.added||0) - (b.removed||0)));
+  // Build unfloored halving series from current global $/pin
+  const basePerAcre = (b.pins * STATE.master.dollarsPerPin) / acres;
+  const auto = passCount(basePerAcre);
+  const count = Math.min(8, Math.max(1, auto + (b.addedPasses||0) - (b.removedPasses||0)));
 
   let rates = [];
-  let prev = basePerAcre;
-  for (let i=1;i<=passCount;i++){
-    const r = (i===1)? basePerAcre : prev/2;
-    rates.push(r);
-    prev = r;
-  }
+  let r = basePerAcre;
+  for (let i=1;i<=count;i++){ rates.push(r); r = r/2; }
 
   let sumRates = rates.reduce((a,c)=>a+c,0);
-  // If starting series is all zeros (e.g., pins=0), distribute evenly
-  if (sumRates <= 0.0000001){
-    const each = (targetBase / acres) / passCount;
-    rates = rates.map(_=>each);
+  const targetSumRates = acres ? targetBase/acres : 0;
+
+  if (sumRates <= 1e-9){
+    // pins 0 edge-case: even split
+    const each = targetSumRates / count;
+    rates = Array.from({length:count}, _=>each);
   } else {
-    // scale so sum(rates)*acres == targetBase
-    const targetSumRates = targetBase / acres;
     const s = targetSumRates / sumRates;
-    rates = rates.map(r => r4(Math.max(0, r*s))); // allow below global floor by design
+    rates = rates.map(x => r4(Math.max(0, x*s))); // ignore floor by design when override is active
   }
 
-  // Save overrides; compute() will ignore floor when overrides exist
   b.overrides = {};
-  rates.forEach((r, idx)=>{ b.overrides[idx+1] = r; });
+  rates.forEach((val, idx) => { b.overrides[idx+1] = val; });
 }
 
-/* ========= UI ========= */
+function clearBlockOverride(blockId){
+  const b = STATE.blocks.find(x=>x.id===blockId);
+  if (!b) return;
+  b.overrides = null;
+}
+
+// ===== UI bindings =====
 function bindMaster(){
-  // Top inputs: these now work and trigger recompute right away
-  $('#minAcre').addEventListener('input', e=>{
-    state.master.floorPerAcre = Number(e.target.value||0);
+  // live updates for top inputs (bug fix)
+  $('#floor').addEventListener('input', e => { STATE.master.floorPerAcre = Number(e.target.value||0); render(); });
+  $('#dpp').addEventListener('input',   e => { STATE.master.dollarsPerPin = Number(e.target.value||0); render(); });
+  $('#adjPct').addEventListener('input',e => { STATE.master.adjPct = Number(e.target.value||0); render(); });
+  $('#adjMinus').addEventListener('click', ()=>{ STATE.master.adjPct = (STATE.master.adjPct||0)-1; $('#adjPct').value = STATE.master.adjPct; render(); });
+  $('#adjPlus').addEventListener('click',  ()=>{ STATE.master.adjPct = (STATE.master.adjPct||0)+1; $('#adjPct').value = STATE.master.adjPct; render(); });
+
+  $('#passMinusAll').addEventListener('click', ()=>{
+    STATE.blocks.forEach(b => b.removedPasses = (b.removedPasses||0)+1);
     render();
   });
-  $('#dpp').addEventListener('input', e=>{
-    state.master.dollarsPerPin = Number(e.target.value||0);
+  $('#passPlusAll').addEventListener('click', ()=>{
+    STATE.blocks.forEach(b => b.addedPasses = (b.addedPasses||0)+1);
     render();
   });
-  $('#adjPct').addEventListener('input', e=>{
-    state.master.adjPct = Number(e.target.value||0);
-    render();
-  });
-  $('#adjMinus').addEventListener('click', ()=>{
-    state.master.adjPct = (state.master.adjPct||0) - 1;
-    $('#adjPct').value = state.master.adjPct;
-    render();
-  });
-  $('#adjPlus').addEventListener('click', ()=>{
-    state.master.adjPct = (state.master.adjPct||0) + 1;
-    $('#adjPct').value = state.master.adjPct;
-    render();
-  });
+
   $('#addBlock').addEventListener('click', ()=>{
-    const nextId = (state.blocks.reduce((m,b)=>Math.max(m,b.id),0) || 0) + 1;
-    state.blocks.push({ id:nextId, label:`Block ${nextId}`, pins:100, acres:10, include:true, added:0, removed:0, overrides:null });
+    const nextId = (STATE.blocks.reduce((m,b)=>Math.max(m,b.id),0) || 0) + 1;
+    STATE.blocks.push({ id:nextId, label:`Block ${nextId}`, pins:100, acres:10, include:true, addedPasses:0, removedPasses:0, owlQty:0, overrides:null });
     render();
   });
 }
 
-function render(){
-  const data = computeAll();
-  $('#totalBase').textContent = '$' + fmt(data.masterTotals.base);
-  $('#totalAdj').textContent  = '$' + fmt(data.masterTotals.adjusted);
+function renderMasterSummary(master){
+  $('#includedAcres').textContent = fmt(master.includedAcres);
+  $('#includedPins').textContent  = master.includedPins.toLocaleString();
+  $('#totalBase').textContent     = '$' + fmt(master.baseTotal);
+  $('#totalAdj').textContent      = '$' + fmt(master.adjustedTotal);
 
+  const tbody = $('#masterRows tbody');
+  tbody.innerHTML='';
+  master.rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.contributing}/${r.activeBlocks}</td>
+      <td>${r.pass}</td>
+      <td>$${fmt(r.basePerAcre)}</td>
+      <td>$${fmt(r.adjPerAcre)}</td>
+      <td>${fmt(r.hours)}</td>
+      <td>$${fmt(r.baseTotal)}</td>
+      <td>$${fmt(r.adjTotal)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderBlocks(blocks){
   const wrap = $('#blocks');
   wrap.innerHTML = '';
+  blocks.forEach(b=>{
+    const sb = STATE.blocks.find(x=>x.id===b.id);
 
-  data.blocks.forEach(b=>{
-    const sb = state.blocks.find(x=>x.id===b.id);
-
-    // pill
     const pill = document.createElement('div');
     pill.className = 'block-pill';
     pill.innerHTML = `
-      <span class="value" style="color:var(--brown)">${b.label}</span>
+      <span class="value" style="color:var(--green)">${b.label}</span>
       <span class="badge">${b.acres} ac</span>
       <span class="badge">${b.pins} pins</span>
       <div class="right">
-        <label class="muted"><input type="checkbox" data-inc="${b.id}" ${sb.include!==false?'checked':''}> include</label>
-        <button class="btn" data-toggle="${b.id}">open</button>
+        <label class="small-muted"><input type="checkbox" data-inc="${b.id}" ${sb.include!==false?'checked':''}> include</label>
+        <button class="pill-btn" data-toggle="${b.id}">open</button>
       </div>
     `;
     wrap.appendChild(pill);
 
-    // card
     const card = document.createElement('div');
     card.className = 'block-card hidden';
     card.dataset.id = b.id;
     card.innerHTML = `
       <div class="row" style="margin-bottom:6px">
-        <span class="pill small">Pins <input type="number" step="1" min="0" value="${sb.pins}" data-pins="${b.id}"></span>
-        <span class="pill small">Acres <input type="number" step="0.01" min="0.01" value="${sb.acres}" data-acres="${b.id}"></span>
-        <span class="pill small">Set total $ <input type="number" step="1" min="0" placeholder="e.g. 2000" data-settotal="${b.id}"></span>
-        <button class="btn" data-applytotal="${b.id}">Apply</button>
-        ${sb.overrides? '<button class="btn" data-clearov="'+b.id+'">Clear override</button>':''}
-        <span class="muted">${sb.overrides? 'Override active (ignores min $/acre and $/pin for this block)' : ''}</span>
+        <span class="pill">Pins <input type="number" step="1" min="0" value="${sb.pins}" data-pins="${b.id}" class="pill-input small"></span>
+        <span class="pill">Acres <input type="number" step="0.01" min="0.01" value="${sb.acres}" data-acres="${b.id}" class="pill-input small"></span>
+        <span class="pill">Set total $ <input type="number" step="1" min="0" placeholder="e.g. 2000" data-settotal="${b.id}" class="pill-input small"></span>
+        <button class="pill-btn" data-applytotal="${b.id}">Apply</button>
+        ${sb.overrides? '<button class="pill-btn" data-clearov="'+b.id+'">Clear override</button>':''}
+        <span class="small-muted">${sb.overrides? 'Override active (ignores min $/acre and $/pin for this block)' : ''}</span>
       </div>
-      <div class="row muted" style="margin-bottom:4px">
+      <div class="row small-muted" style="margin-bottom:6px">
         <span>Passes: ${b.passCount}</span>
         <span>Base total: $${fmt(b.baseTotal)}</span>
         <span>Adjusted: $${fmt(b.adjustedTotal)}</span>
@@ -286,28 +388,40 @@ function render(){
     `;
     wrap.appendChild(card);
 
-    // events
-    pill.querySelector(`[data-toggle="${b.id}"]`).onclick = ()=> card.classList.toggle('hidden');
+    // Events
+    pill.addEventListener('click', (e)=>{
+      if (e.target.closest('input[type=checkbox]')) return;
+      const btn = e.target.closest('button[data-toggle]');
+      if (btn) { card.classList.toggle('hidden'); return; }
+      card.classList.toggle('hidden');
+    });
     pill.querySelector(`[data-inc="${b.id}"]`).onchange = (e)=>{ sb.include = e.target.checked; render(); };
 
-    card.querySelector(`[data-pins="${b.id}"]`).oninput  = e=>{ sb.pins  = Math.max(0, Number(e.target.value||0)); if(!sb.overrides) render(); };
-    card.querySelector(`[data-acres="${b.id}"]`).oninput = e=>{ sb.acres = Math.max(0.01, Number(e.target.value||0.01)); if(!sb.overrides) render(); };
+    const pinsEl  = card.querySelector(`[data-pins="${b.id}"]`);
+    const acresEl = card.querySelector(`[data-acres="${b.id}"]`);
+    pinsEl.oninput  = e=>{ sb.pins  = Math.max(0, Number(e.target.value||0)); if(!sb.overrides) render(); };
+    acresEl.oninput = e=>{ sb.acres = Math.max(0.01, Number(e.target.value||0.01)); if(!sb.overrides) render(); };
 
-    const applyBtn = card.querySelector(`[data-applytotal="${b.id}"]`);
-    const setTotalInput = card.querySelector(`[data-settotal="${b.id}"]`);
-    applyBtn.onclick = ()=>{
-      const target = Number(setTotalInput.value||0);
-      if(target<=0){ alert('Enter a positive total.'); return; }
-      setBlockTotal(b.id, target); // overrides min $/acre and $/pin FOR THIS BLOCK
+    const setEl  = card.querySelector(`[data-settotal="${b.id}"]`);
+    const apply  = card.querySelector(`[data-applytotal="${b.id}"]`);
+    apply.onclick = ()=>{
+      const target = Number(setEl.value||0);
+      if (target <= 0){ alert('Enter a positive total.'); return; }
+      setBlockTotal(b.id, target);
       render();
     };
 
     const clr = card.querySelector(`[data-clearov="${b.id}"]`);
-    if (clr) clr.onclick = ()=>{ sb.overrides = null; render(); };
+    if (clr) clr.onclick = ()=>{ clearBlockOverride(b.id); render(); };
   });
 }
 
-/* init */
+function render(){
+  const data = computeAll();
+  renderMasterSummary(data.master);
+  renderBlocks(data.blocks);
+}
+
 bindMaster();
 render();
 </script>
