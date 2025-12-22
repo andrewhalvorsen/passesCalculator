@@ -447,7 +447,7 @@ function clearMasterError(){ const e=$('#masterErr'); if(e){e.style.display='non
 function setMasterError(msg){ const e=$('#masterErr'); if(e){ e.style.display='block'; e.textContent=msg; } }
 function setOverride(b, passIndex, rate){
   if (!b.overrides) b.overrides = {};
-  b.overrides[passIndex] = roundN(rate, 4); // store per-acre at 4 dp
+  b.overrides[passIndex] = roundN(rate, 5); // store per-acre at 5 dp for precise cents on large acres
 }
 
 /* Adjust one block to a target total (ADJUSTED) — overrides floor & $/pin for that block */
@@ -458,14 +458,14 @@ function adjustBlockTotal(b, targetAdjusted){
   const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
   const acres = Number($(`#acres-${id}`).value||0) || 0.01;
 
-  // Effective $/pin to seed halving (floors are ignored for overrides)
+  // Seed halving from $/pin (floors ignored for overrides)
   const effDpp = (()=>{
     const v = Number($(`#dpp-${id}`).value);
     if (Number.isFinite(v) && v>=0) return round2(v);
     const m = Number($('#masterDpp').value)||20; return round2(m);
   })();
 
-  // pass count from current math (no floors)
+  // pass count from current math
   const base = calcBase(pins, acres, effDpp);
   let passCount = base.autoCount + (b.addedPasses||0) - (b.removedPasses||0);
   passCount = clamp(passCount,1,8);
@@ -488,10 +488,10 @@ function adjustBlockTotal(b, targetAdjusted){
   let rates;
   if (sumRates <= 1e-9){
     const each = targetSumRates / passCount;
-    rates = Array.from({length:passCount}, ()=> roundN(each, 4));
+    rates = Array.from({length:passCount}, ()=> roundN(each, 5));
   } else {
     const s = targetSumRates / sumRates;
-    rates = series.map(x => roundN(Math.max(0, x*s), 4)); // ignore floor by design
+    rates = series.map(x => roundN(Math.max(0, x*s), 5)); // ignore floor by design
   }
 
   // Helper to compute adjusted total with per-pass rounding
@@ -507,10 +507,15 @@ function adjustBlockTotal(b, targetAdjusted){
   // Nudge last pass so ADJUSTED total hits T_adj exactly (to the cent)
   let achieved = adjustedOf(rates);
   let delta = round2(T_adj - achieved);
-  for (let iter=0; iter<20 && Math.abs(delta) >= 0.01; iter++){
+  for (let iter=0; iter<40 && Math.abs(delta) >= 0.01; iter++){
     const j = rates.length - 1; // adjust last pass
     const deltaPerAcre = delta / (acres * factor);
-    rates[j] = roundN(Math.max(0, rates[j] + deltaPerAcre), 4);
+    rates[j] = roundN(Math.max(0, rates[j] + deltaPerAcre), 5);
+    const again = adjustedOf(rates);
+    // If we bounced, take a smaller step
+    if (Math.abs(again - T_adj) > Math.abs(delta)) {
+      rates[j] = roundN(Math.max(0, rates[j] + deltaPerAcre/2), 5);
+    }
     achieved = adjustedOf(rates);
     delta = round2(T_adj - achieved);
   }
@@ -562,17 +567,18 @@ function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
   if (items.length===0){ setMasterError('No blocks contribute to this pass.'); return; }
 
   if (mode === 'peracre'){
+    // Allow override BELOW floor (requested) — we store base $/acre = adjusted/ factor
     const targetAdjPerAcre = Number(targetAdjustedValue);
     if (!(targetAdjPerAcre>=0)){ setMasterError('Enter a valid adjusted $/acre.'); return; }
     const targetBasePerAcre = round2(targetAdjPerAcre / factor);
     for (const it of items){
-      const newRate = Math.max(it.floor, targetBasePerAcre);
+      const newRate = Math.max(0, targetBasePerAcre); // no floor clamp here
       setOverride(it.b, passIndex1, newRate);
     }
     return;
   }
 
-  // mode === 'total'
+  // mode === 'total'  (keep floors here so totals don’t drive some passes negative)
   const targetAdjTotal = Number(targetAdjustedValue);
   if (!(targetAdjTotal>=0)){ setMasterError('Enter a valid adjusted total.'); return; }
   const targetBaseTotal = round2(targetAdjTotal / factor);
@@ -588,12 +594,12 @@ function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
   const cur = sumBase(rates);
   if (cur>0){
     const s = targetBaseTotal / cur;
-    rates = rates.map(r => roundN(Math.max(0, r*s), 4));
+    rates = rates.map(r => roundN(Math.max(0, r*s), 5));
     for (let i=0;i<rates.length;i++) if (rates[i] < items[i].floor) rates[i] = items[i].floor;
   }
 
   let achieved = sumBase(rates);
-  for (let iter=0; iter<20 && Math.abs(achieved - targetBaseTotal) > 0.01; iter++){
+  for (let iter=0; iter<30 && Math.abs(achieved - targetBaseTotal) > 0.01; iter++){
     const delta = targetBaseTotal - achieved;
     const movable = [];
     for (let i=0;i<rates.length;i++){
@@ -607,7 +613,7 @@ function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
 
     const dPerAcre = delta / movableAcres;
     for (const i of movable){
-      rates[i] = roundN(rates[i] + dPerAcre, 4);
+      rates[i] = roundN(rates[i] + dPerAcre, 5);
       if (rates[i] < items[i].floor) rates[i] = items[i].floor;
     }
     achieved = sumBase(rates);
@@ -622,7 +628,7 @@ function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
       if (rates[k] > items[k].floor + 1e-9){ j = k; break; }
     }
     const deltaPerAcre = deltaAdj / (acresArr[j] * factor);
-    rates[j] = roundN(Math.max(items[j].floor, rates[j] + deltaPerAcre), 4);
+    rates[j] = roundN(Math.max(items[j].floor, rates[j] + deltaPerAcre), 5);
   }
 
   for (let i=0;i<rates.length;i++){
@@ -707,7 +713,7 @@ function renderAll(){
           blockAdjTotal  += passAdj;
           blockHours     += hours;
 
-          // normal row (Adjusted total shown in Total Cost column)
+          // normal row
           const tr = document.createElement('tr');
           if (p.number===1) tr.classList.add('row-hi');
           tr.innerHTML = `
