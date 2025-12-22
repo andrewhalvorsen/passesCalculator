@@ -318,18 +318,20 @@ let masterMonthsTouched = false;
 const editState = { active:false, by:'total' }; // 'total' | 'peracre'
 let masterAdjPct = 0;
 
-/* ===== Effective inputs ===== */
+/* ===== Effective inputs (FIXED to treat blank as "inherit master") ===== */
 function effFloorFor(b){
-  const v = Number($(`#floor-${b.id}`).value);
-  if (Number.isFinite(v) && v>=0) return round2(v);
-  const m = readMaster('#masterFloor', 20);
-  return round2(m);
+  const el = $(`#floor-${b.id}`);
+  const raw = el ? el.value : '';
+  if (raw === '' || raw == null) return readMaster('#masterFloor', 20);
+  const v = Number(raw);
+  return (Number.isFinite(v) && v >= 0) ? round2(v) : readMaster('#masterFloor', 20);
 }
 function effDppFor(b){
-  const v = Number($(`#dpp-${b.id}`).value);
-  if (Number.isFinite(v) && v>=0) return round2(v);
-  const m = readMaster('#masterDpp', 20);
-  return round2(m);
+  const el = $(`#dpp-${b.id}`);
+  const raw = el ? el.value : '';
+  if (raw === '' || raw == null) return readMaster('#masterDpp', 20);
+  const v = Number(raw);
+  return (Number.isFinite(v) && v >= 0) ? round2(v) : readMaster('#masterDpp', 20);
 }
 
 /* ===== Auto pass count based on BASE $/acre only =====
@@ -480,7 +482,7 @@ function setOverride(b, passIndex, rate){
   b.overrides[passIndex] = roundN(rate, 5);
 }
 
-/* ===== "Set total" — hit target ADJUSTED total exactly across ALL passes ===== */
+/* ===== "Set total" ===== */
 function adjustBlockTotal(b, targetAdjusted){
   clearMasterError();
   const id = b.id;
@@ -488,22 +490,19 @@ function adjustBlockTotal(b, targetAdjusted){
   const pins  = Math.trunc(Number($(`#pins-${id}`).value||0));
   const acres = Number($(`#acres-${id}`).value||0) || 0.01;
 
-  const passCount = passCountFor(b);       // use current pass count
+  const passCount = passCountFor(b);
   const effDpp    = effDppFor(b);
   const factor    = 1 + (Number(masterAdjPct)||0)/100;
   const T_adj     = Number(targetAdjusted||0);
   if (!(T_adj>=0)){ setMasterError(`Block ${id}: enter a valid total.`); return; }
 
-  // Convert to base target
   const T_base = round2(T_adj / factor);
 
-  // Build UNFLOORED halving series from base
   const { basePerAcre } = calcBase(pins, acres, effDpp);
   let series = [];
   let r = basePerAcre;
   for (let i=1;i<=passCount;i++){ series.push(r); r = r/2; }
 
-  // Scale uniformly to meet target sum of base totals
   const sumRates = series.reduce((a,c)=>a+c,0);
   const targetSumRates = T_base / acres;
   let rates;
@@ -515,7 +514,6 @@ function adjustBlockTotal(b, targetAdjusted){
     rates = series.map(x => roundN(Math.max(0, x*s), 5)); // ignore floor by design
   }
 
-  // Compute adjusted total (respect per-pass rounding)
   const adjustedOf = arr => {
     let sum = 0;
     for (const v of arr){
@@ -525,23 +523,21 @@ function adjustBlockTotal(b, targetAdjusted){
     return round2(sum);
   };
 
-  // Nudge last pass so ADJUSTED total hits T_adj exactly
   let achieved = adjustedOf(rates);
   let delta = round2(T_adj - achieved);
   for (let iter=0; iter<50 && Math.abs(delta) >= 0.01; iter++){
-    const j = rates.length - 1; // adjust last pass
+    const j = rates.length - 1;
     const deltaPerAcre = delta / (acres * factor);
     rates[j] = roundN(Math.max(0, rates[j] + deltaPerAcre), 5);
     achieved = adjustedOf(rates);
     delta = round2(T_adj - achieved);
   }
 
-  // Apply overrides for ALL passes 1..passCount
   b.overrides = {};
   for (let i=0;i<rates.length;i++) setOverride(b, i+1, rates[i]);
 }
 
-/* ===== Master edit across blocks (kept as before) ===== */
+/* ===== Master edit across blocks (unchanged) ===== */
 function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
   clearMasterError();
 
@@ -564,7 +560,7 @@ function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
     if (idx >= pCount) continue;
 
     const q = calcWithCount(pins, acres, pCount, effFloor, effDpp, b.overrides);
-    const r = q.passes[idx].perAcre; // base side for this pass
+    const r = q.passes[idx].perAcre;
     items.push({ b, acres, floor: effFloor, baseRate: r });
   }
 
@@ -620,7 +616,6 @@ function applyMasterEdit(passIndex1, mode, targetAdjustedValue){
     achieved = sumBase(rates);
   }
 
-  // Final nudge to match adjusted target exactly
   let achievedAdj = round2(sumBase(rates) * factor);
   let deltaAdj = round2(targetAdjTotal - achievedAdj);
   if (Math.abs(deltaAdj) >= 0.01){
@@ -647,7 +642,6 @@ function renderAll(){
     const inCustomer = document.body.classList.contains('customer');
     $('#owlPrice').disabled = inCustomer;
 
-    // Edit UI show/hide
     $('#editByWrap').style.display = (!inCustomer && editState.active ? 'inline-flex' : 'none');
     $('#editToggle').style.display = (!inCustomer && !editState.active ? 'inline-flex' : 'none');
 
@@ -671,7 +665,6 @@ function renderAll(){
         const pins  = Math.trunc(Number($(`#pins-${b.id}`).value||0));
         const acres = Number($(`#acres-${b.id}`).value||0);
 
-        // Inherit master when blank; do NOT overwrite the inputs
         const floorIn = $(`#floor-${b.id}`), dppIn = $(`#dpp-${b.id}`);
         const effFloor = (floorIn.value!=='' && Number.isFinite(Number(floorIn.value)) && Number(floorIn.value) >= 0)
           ? round2(Number(floorIn.value)) : floor;
@@ -684,19 +677,16 @@ function renderAll(){
         const bOwlQty = Math.max(0, Math.trunc(Number($(`#owlQty-${b.id}`).value)||0));
         if (include) blocksOwlsQtySum += bOwlQty;
 
-        // pill header meta
         $(`#hdrPins-${b.id}`).textContent  = Number.isFinite(pins)?pins:'—';
         $(`#hdrAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#effectiveFloor-${b.id}`).textContent = `Floor: ${fmtUSD(effFloor)}/acre`;
         $(`#effectiveDpp-${b.id}`).textContent   = `$/pin: ${fmtUSD(effDpp)}`;
         $(`#pillOwls-${b.id}`).textContent       = `${bOwlQty}`;
 
-        // Customer-view mini summary
         $(`#cPins-${b.id}`).textContent  = Number.isFinite(pins)?pins:'—';
         $(`#cAcres-${b.id}`).textContent = Number.isFinite(acres)?round2(acres).toFixed(2):'—';
         $(`#cOwls-${b.id}`).textContent  = `${bOwlQty}`;
 
-        // Build tables
         const tbody = $(`#rows-${b.id}`); tbody.innerHTML = '';
         const ctbody = $(`#custrows-${b.id}`); ctbody.innerHTML = '';
         let blockBaseTotal = 0, blockAdjTotal = 0, blockHours = 0;
@@ -711,7 +701,6 @@ function renderAll(){
           blockAdjTotal  += passAdj;
           blockHours     += hours;
 
-          // normal row
           const tr = document.createElement('tr');
           if (p.number===1) tr.classList.add('row-hi');
           tr.innerHTML = `
@@ -721,7 +710,6 @@ function renderAll(){
             <td>${fmtUSD(passAdj)}</td>`;
           tbody.appendChild(tr);
 
-          // customer row (Adjusted $/acre + Adjusted total)
           const ctr = document.createElement('tr');
           if (p.number===1) ctr.classList.add('row-hi');
           const adjPerAcre = round2(p.perAcre * factor);
@@ -763,7 +751,6 @@ function renderAll(){
 
     $('#blockCountPill').textContent = `Blocks: ${blocks.length} (active ${activeBlocks})`;
 
-    // Master table rows
     const mBody = $('#masterPassRows'); mBody.innerHTML = '';
     let baseTotal = 0, adjTotal = 0, masterHours = 0;
     for (let i=0;i<masterRows.length;i++){
@@ -810,13 +797,11 @@ function renderAll(){
     $('#masterAdjTotalPill').textContent = fmtUSD(round2(adjTotal));
     $('#masterPctLabel').textContent = `${masterAdjPct>=0?'+':''}${masterAdjPct}%`;
 
-    // Extras
     const owlPriceMaster = Math.max(0, Number($('#owlPrice').value)||0);
     const extrasTotal = round2(blocksOwlsQtySum * owlPriceMaster);
     $('#owlQtyTotalPill').textContent = `Owls: ${blocksOwlsQtySum}`;
     $('#owlTotalPill').textContent = fmtUSD(extrasTotal);
 
-    // months & payments
     let monthsVal = Number($('#masterMonths').value);
     const maxPass = mBody.children.length || 1;
     if (!masterMonthsTouched || !Number.isFinite(monthsVal)){ monthsVal = maxPass; $('#masterMonths').value = monthsVal; }
@@ -854,12 +839,10 @@ function wireEvents(){
     renderAll();
   });
 
-  // master inputs
   $('#masterMonths').addEventListener('input', ()=>{ masterMonthsTouched = true; renderAll(); });
   $('#masterFloor').addEventListener('input', renderAll);
   $('#masterDpp').addEventListener('input', renderAll);
 
-  // Edit controls
   $('#editToggle').addEventListener('click', ()=>{
     editState.active = true;
     renderAll();
@@ -870,7 +853,6 @@ function wireEvents(){
   $('#editCancel').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
   $('#editSave').addEventListener('click', ()=>{ editState.active = false; renderAll(); });
 
-  // Inline master edit commit
   $('#masterPassRows').addEventListener('keydown', (e)=>{
     if (e.key === 'Enter' && e.target.classList.contains('edit-input')){
       const pass = Number(e.target.dataset.pass);
@@ -890,21 +872,16 @@ function wireEvents(){
     }
   }, true);
 
-  // master pass control
   $('#masterRemovePass').addEventListener('click', ()=>{ for (const b of blocks){ b.removedPasses = (b.removedPasses||0)+1; } renderAll(); });
   $('#masterAddPass').addEventListener('click',    ()=>{ for (const b of blocks){ b.addedPasses   = (b.addedPasses||0)+1;   } renderAll(); });
 
-  // % adjuster
   $('#masterIncPct').addEventListener('click', ()=>{ masterAdjPct += 1; renderAll(); });
   $('#masterDecPct').addEventListener('click', ()=>{ masterAdjPct -= 1; renderAll(); });
 
-  // Extras
   $('#owlPrice').addEventListener('input', renderAll);
 
-  // Add block
   $('#addBlockBtn').addEventListener('click', ()=> addNewBlock({pins:0, acres:1, collapsed:true}));
 
-  // Block events
   const blocksEl = $('#blocks');
   blocksEl.addEventListener('click', (e)=>{
     if (e.target.closest('.switch')) { setTimeout(renderAll, 0); return; }
